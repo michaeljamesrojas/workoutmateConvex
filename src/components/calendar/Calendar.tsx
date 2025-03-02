@@ -76,6 +76,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     editable: true,
     selectable: true,
     dateClick: handleDateClick,
+    nowIndicator: true,
   };
 
   return (
