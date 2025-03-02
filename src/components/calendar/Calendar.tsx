@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
 import { Header } from "../layout";
 import { useAuth } from "../../contexts/AuthContext";
 import styles from "./Calendar.module.css";
@@ -41,7 +41,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
   }));
 
   // Handle date click - create a new event when a time slot is clicked
-  const handleDateClick = async (info: any) => {
+  const handleDateClick = async (info: DateClickArg) => {
     const title = prompt("Enter event title:"); // Simple prompt for event title
     if (title && userId) {
       const newEvent = {
