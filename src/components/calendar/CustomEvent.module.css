@@ -8,11 +8,18 @@
   line-height: 1.2;
   overflow: hidden;
   background-color: #90caf9; /* Light blue color for other users */
+  border: 1px solid #64b5f6; /* Slightly darker blue for border */
+}
+
+.customEvent:global(.fc-event) {
+  border: none !important;
+  background: none !important;
 }
 
 .currentUserEvent {
   background-color: #ff7043; /* Softer orange color for user's own events */
   color: white;
+  border: 1px solid #f4511e; /* Slightly darker orange for border */
 }
 
 .currentUserEvent .eventTime,
