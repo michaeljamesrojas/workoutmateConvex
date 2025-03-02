@@ -7,11 +7,11 @@
   font-size: 0.85rem;
   line-height: 1.2;
   overflow: hidden;
-  background-color: #90caf9; /* Light blue color */
+  background-color: #90caf9; /* Light blue color for other users */
 }
 
 .currentUserEvent {
-  background-color: var(--primary); /* Orange color for user's own events */
+  background-color: #ff7043; /* Softer orange color for user's own events */
   color: white;
 }
 
