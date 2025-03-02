@@ -55,4 +55,9 @@
   border-color: var(--primary);
   border-top-color: transparent;
   border-bottom-color: transparent;
+}
+
+/* Increase height of time slots in time grid view */
+:global(.fc-timegrid-slot) {
+  height: 2.5em !important; /* Increase from default (~1.5em) to 3em */
 } 

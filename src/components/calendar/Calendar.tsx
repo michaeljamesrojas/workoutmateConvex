@@ -84,6 +84,11 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     dateClick: handleDateClick,
     nowIndicator: true,
     scrollTime: "08:00:00",
+    // Additional time slot configuration options
+    slotDuration: "00:15:00", // 30-minute slots (default)
+    slotLabelInterval: "01:00:00", // Show labels every hour
+    slotMinTime: "00:00:00", // Start at midnight
+    slotMaxTime: "24:00:00", // End at midnight
   };
 
   return (
