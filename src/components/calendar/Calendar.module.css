@@ -27,4 +27,24 @@
 
 :global(.fc-daygrid-day.fc-day-today) {
   background-color: rgba(var(--accent-light-rgb), 0.2);
+}
+
+/* Style time grid view */
+:global(.fc-timegrid-axis) {
+  background-color: #f9f9f9;
+  font-weight: 500;
+}
+
+:global(.fc-timegrid-slot-label) {
+  font-size: 0.85rem;
+}
+
+:global(.fc-timegrid-now-indicator-line) {
+  border-color: var(--primary);
+}
+
+:global(.fc-timegrid-now-indicator-arrow) {
+  border-color: var(--primary);
+  border-top-color: transparent;
+  border-bottom-color: transparent;
 } 
