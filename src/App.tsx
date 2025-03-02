@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Login } from "./components/Login";
 import { Chat } from "./components/Chat";
 import { useAuth } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export default function App() {
   const { userId, username, isAuthenticated } = useAuth();
@@ -27,7 +28,14 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login isRegistering={false} />} />
       <Route path="/register" element={<Login isRegistering={true} />} />
-      <Route path="/" element={<Chat userId={userId} username={username} />} />
+      <Route 
+        path="/" 
+        element={
+          <ProtectedRoute>
+            <Chat userId={userId} username={username} />
+          </ProtectedRoute>
+        } 
+      />
     </Routes>
   );
 }
