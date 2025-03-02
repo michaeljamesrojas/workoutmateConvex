@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import styles from "./Header.module.css";
 
 interface HeaderProps {
   username: string | null;
@@ -14,20 +15,18 @@ export const Header = ({ username }: HeaderProps) => {
   };
 
   return (
-    <header className="app-header">
+    <header className={styles.header}>
       <h1>Workoutmate</h1>
-      <div className="user-profile">
-        <div className="profile-container" onClick={toggleDropdown}>
-          <div className="profile-icon">
+      <div className={styles.userProfile}>
+        <div className={styles.profileContainer} onClick={toggleDropdown}>
+          <div className={styles.profileIcon}>
             {username ? username.charAt(0).toUpperCase() : "U"}
           </div>
         </div>
         {isDropdownOpen && (
-          <div className="profile-dropdown">
-            <div className="dropdown-user-info">
-              {username}
-            </div>
-            <button onClick={logout} className="dropdown-item">
+          <div className={styles.profileDropdown}>
+            <div className={styles.dropdownUserInfo}>{username}</div>
+            <button onClick={logout} className={styles.dropdownItem}>
               Sign Out
             </button>
           </div>
@@ -35,4 +34,4 @@ export const Header = ({ username }: HeaderProps) => {
       </div>
     </header>
   );
-}; 
+};
