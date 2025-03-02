@@ -75,13 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    // Clear local auth state
-    localStorage.removeItem("userId");
-    localStorage.removeItem("username");
-    setUserId(null);
-    setUsername(null);
-    
-    // Also sign out from Clerk if there's an active session
+    // sign out from Clerk if there's an active session
     try {
       if (clerk.session) {
         await clerk.signOut();
@@ -89,6 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Error signing out from Clerk:", error);
     }
+    
+    // Clear local auth state
+    localStorage.removeItem("userId");
+    localStorage.removeItem("username");
+    setUserId(null);
+    setUsername(null);
     
     navigate("/login");
   };
