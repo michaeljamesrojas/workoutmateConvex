@@ -140,3 +140,44 @@ export const getUser = query({
     };
   },
 });
+
+/**
+ * Get or create a user with Clerk authentication
+ * This function is called when a user signs in with Google via Clerk
+ */
+export const getUserFromClerk = mutation({
+  args: {
+    clerkId: v.string(),
+    username: v.string(),
+  },
+  returns: v.object({
+    userId: v.id("users"),
+    username: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    // Check if user with this Clerk ID already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .unique();
+
+    if (existingUser) {
+      return {
+        userId: existingUser._id,
+        username: existingUser.username,
+      };
+    }
+
+    // Otherwise, create a new user
+    const userId = await ctx.db.insert("users", {
+      username: args.username,
+      clerkId: args.clerkId,
+      createdAt: Date.now(),
+    });
+
+    return {
+      userId,
+      username: args.username,
+    };
+  },
+});

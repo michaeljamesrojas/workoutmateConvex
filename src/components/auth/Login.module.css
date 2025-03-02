@@ -136,4 +136,47 @@
 
 .linkButton:hover {
   color: #e94c12;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #666;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.divider span {
+  padding: 0 10px;
+}
+
+.googleButton {
+  background-color: #fff;
+  color: #444;
+  border: 1px solid #ddd;
+  transition: background-color 0.3s;
+}
+
+.googleButton:hover {
+  background-color: #f1f1f1;
+}
+
+.googleButton:before {
+  content: "";
+  background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path fill="%234285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.2 1.13-.83 2.08-1.76 2.72v2.26h2.84c1.66-1.52 2.62-3.76 2.62-6.62z"/><path fill="%2334A853" d="M9 18c2.36 0 4.34-.77 5.8-2.1l-2.84-2.2C10.94 14.4 10.02 14.8 9 14.8a5.22 5.22 0 0 1-4.92-3.64H.96v2.28A8.9 8.9 0 0 0 9 18z"/><path fill="%23FBBC05" d="M4.08 11.16A5.36 5.36 0 0 1 3.78 9c0-.74.1-1.47.3-2.16H.96v2.28a8.9 8.9 0 0 0 3.12 6.04l2.84-2.28c-.68-.74-1.18-1.7-1.44-2.72z"/><path fill="%23EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.48-2.48C13.46.89 11.46 0 9 0a8.9 8.9 0 0 0-8.04 5.04l2.92 2.26C4.94 5.05 6.8 3.58 9 3.58z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: 12px center;
+  padding-left: 40px;
+  display: inline-block;
+  vertical-align: middle;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
 } 

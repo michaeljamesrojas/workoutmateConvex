@@ -5,19 +5,23 @@ import "./index.css";
 import App from "./App";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ClerkProvider } from "@clerk/clerk-react";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL);
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ConvexProvider client={convex}>
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/*" element={<App />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </ConvexProvider>
+    <ClerkProvider publishableKey={clerkPubKey}>
+      <ConvexProvider client={convex}>
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/*" element={<App />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </ConvexProvider>
+    </ClerkProvider>
   </StrictMode>,
 );

@@ -9,7 +9,10 @@ export default defineSchema({
 
   users: defineTable({
     username: v.string(),
-    password: v.string(),
+    password: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_username", ["username"]),
+    clerkId: v.optional(v.string()),
+  })
+    .index("by_username", ["username"])
+    .index("by_clerkId", ["clerkId"]),
 });

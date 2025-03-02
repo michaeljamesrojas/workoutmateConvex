@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
-import { Login, ProtectedRoute } from "./components/auth";
+import { Login, ProtectedRoute, OAuthCallback } from "./components/auth";
 import { Chat } from "./components/messaging";
 import { useAuth } from "./contexts/AuthContext";
 
@@ -13,7 +13,11 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) {
       // Only redirect if we're not already on a auth page
-      if (location.pathname !== "/login" && location.pathname !== "/register") {
+      if (
+        location.pathname !== "/login" && 
+        location.pathname !== "/register" &&
+        location.pathname !== "/oauth-callback"
+      ) {
         navigate("/login");
       }
     } else if (location.pathname === "/login" || location.pathname === "/register") {
@@ -27,6 +31,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login isRegistering={false} />} />
       <Route path="/register" element={<Login isRegistering={true} />} />
+      <Route path="/oauth-callback" element={<OAuthCallback />} />
       <Route 
         path="/" 
         element={

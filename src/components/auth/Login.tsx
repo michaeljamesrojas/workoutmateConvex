@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import styles from "./Login.module.css";
 import workoutImage from "../../assets/images/workoutmate.webp";
+import { useSignIn } from "@clerk/clerk-react";
 
 interface LoginProps {
   isRegistering: boolean;
@@ -16,9 +17,11 @@ export function Login({ isRegistering }: LoginProps) {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const { login: authLogin } = useAuth();
+  const { signIn, isLoaded: clerkLoaded } = useSignIn();
   
   const loginMutation = useMutation(api.auth.login);
   const register = useMutation(api.auth.register);
+  const getUserFromClerk = useMutation(api.auth.getUserFromClerk);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +48,22 @@ export function Login({ isRegistering }: LoginProps) {
         }
       }
       setError(errorMessage);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      if (!clerkLoaded || !signIn) return;
+      
+      // Start Google OAuth flow
+      const result = await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/oauth-callback",
+        redirectUrlComplete: "/",
+      });
+    } catch (error) {
+      console.error("Google sign-in failed:", error);
+      setError("Google sign-in failed. Please try again.");
     }
   };
 
@@ -86,6 +105,20 @@ export function Login({ isRegistering }: LoginProps) {
               {isRegistering ? "Register" : "Sign In"}
             </button>
           </form>
+          
+          {/* Google Sign-In Button */}
+          <div className={styles.divider}>
+            <span>OR</span>
+          </div>
+          
+          <button 
+            onClick={handleGoogleSignIn}
+            className={`${styles.loginButton} ${styles.googleButton}`}
+            disabled={!clerkLoaded}
+          >
+            Continue with Google
+          </button>
+          
           <div className={styles.toggleForm}>
             <button 
               onClick={() => navigate(isRegistering ? "/login" : "/register")} 
