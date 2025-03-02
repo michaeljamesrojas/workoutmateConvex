@@ -4,7 +4,7 @@ import { api } from "../../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import styles from "./Login.module.css";
-import workoutImage from "../../assets/images/man pushup svg.webp";
+import workoutImage from "../../assets/images/workoutmate.webp";
 
 interface LoginProps {
   isRegistering: boolean;
