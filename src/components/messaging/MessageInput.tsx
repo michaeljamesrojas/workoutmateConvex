@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import styles from "./MessageInput.module.css";
 
 interface MessageInputProps {
   username: string;
@@ -17,14 +18,15 @@ export const MessageInput = ({ username }: MessageInputProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className={styles.form}>
       <input
         value={newMessageText}
         onChange={(e) => setNewMessageText(e.target.value)}
         placeholder="Write a message…"
         autoFocus
+        className={styles.input}
       />
-      <button type="submit" disabled={!newMessageText}>
+      <button type="submit" disabled={!newMessageText} className={styles.button}>
         Send
       </button>
     </form>

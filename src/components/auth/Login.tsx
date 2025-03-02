@@ -3,6 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import styles from "./Login.module.css";
 
 interface LoginProps {
   isRegistering: boolean;
@@ -47,13 +48,13 @@ export function Login({ isRegistering }: LoginProps) {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
+    <div className={styles.loginContainer}>
+      <div className={styles.loginCard}>
         <h1>Workoutmate</h1>
         <h2>{isRegistering ? "Create Account" : "Sign In"}</h2>
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className={styles.errorMessage}>{error}</div>}
         <form onSubmit={handleSubmit}>
-          <div className="input-group">
+          <div className={styles.inputGroup}>
             <label htmlFor="username">Username</label>
             <input
               id="username"
@@ -64,7 +65,7 @@ export function Login({ isRegistering }: LoginProps) {
               required
             />
           </div>
-          <div className="input-group">
+          <div className={styles.inputGroup}>
             <label htmlFor="password">Password</label>
             <input
               id="password"
@@ -78,15 +79,15 @@ export function Login({ isRegistering }: LoginProps) {
           <button 
             type="submit" 
             disabled={!username.trim() || !password.trim()}
-            className="login-button"
+            className={styles.loginButton}
           >
             {isRegistering ? "Register" : "Sign In"}
           </button>
         </form>
-        <div className="toggle-form">
+        <div className={styles.toggleForm}>
           <button 
             onClick={() => navigate(isRegistering ? "/login" : "/register")} 
-            className="link-button"
+            className={styles.linkButton}
           >
             {isRegistering 
               ? "Already have an account? Sign In" 

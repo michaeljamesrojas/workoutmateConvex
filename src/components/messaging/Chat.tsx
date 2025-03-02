@@ -4,6 +4,7 @@ import { api } from "../../../convex/_generated/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { Header } from "../layout";
 import { MessageInput } from "./MessageInput";
+import styles from "./Chat.module.css";
 
 interface ChatProps {
   userId: string | null;
@@ -26,13 +27,13 @@ export const Chat = ({ userId, username }: ChatProps) => {
   const userDisplayName = username as string;
 
   return (
-    <div className="chat-container">
+    <div className={styles.chatContainer}>
       <Header username={userDisplayName} />
-      <main className="chat">
+      <main className={styles.chat}>
         {messages?.map((message) => (
           <article
             key={message._id}
-            className={message.user === userDisplayName ? "message-mine" : ""}
+            className={`${styles.messageArticle} ${message.user === userDisplayName ? styles.messageMine : ""}`}
           >
             <div>{message.user}</div>
 
