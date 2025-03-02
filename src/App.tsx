@@ -3,14 +3,21 @@ import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Login, ProtectedRoute, OAuthCallback } from "./components/auth";
 import { Chat } from "./components/messaging";
 import { useAuth } from "./contexts/AuthContext";
+import { useUser } from "@clerk/clerk-react";
 
 export default function App() {
   const { userId, username, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { isLoaded: clerkLoaded } = useUser();
 
   // When auth state changes, redirect appropriately
   useEffect(() => {
+    // Skip redirects if Clerk is still loading or we're on the OAuth callback page
+    if (!clerkLoaded || location.pathname === "/oauth-callback") {
+      return;
+    }
+
     if (!isAuthenticated) {
       // Only redirect if we're not already on a auth page
       if (
@@ -18,13 +25,15 @@ export default function App() {
         location.pathname !== "/register" &&
         location.pathname !== "/oauth-callback"
       ) {
+        console.log("Not authenticated, redirecting to login");
         navigate("/login");
       }
     } else if (location.pathname === "/login" || location.pathname === "/register") {
       // If logged in but on auth page, redirect to chat
+      console.log("Already authenticated, redirecting to home");
       navigate("/");
     }
-  }, [isAuthenticated, navigate, location.pathname]);
+  }, [isAuthenticated, navigate, location.pathname, clerkLoaded]);
 
   // Main route structure
   return (

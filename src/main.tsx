@@ -12,7 +12,13 @@ const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ClerkProvider publishableKey={clerkPubKey}>
+    <ClerkProvider 
+      publishableKey={clerkPubKey}
+      afterSignInUrl="/oauth-callback"
+      afterSignUpUrl="/oauth-callback"
+      signInUrl="/login"
+      signUpUrl="/register"
+    >
       <ConvexProvider client={convex}>
         <BrowserRouter>
           <AuthProvider>

@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import styles from "./Login.module.css";
 import workoutImage from "../../assets/images/workoutmate.webp";
-import { useSignIn } from "@clerk/clerk-react";
+import { useSignIn, useClerk, useUser } from "@clerk/clerk-react";
 
 interface LoginProps {
   isRegistering: boolean;
@@ -15,13 +15,24 @@ export function Login({ isRegistering }: LoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isProcessingGoogle, setIsProcessingGoogle] = useState(false);
   const navigate = useNavigate();
-  const { login: authLogin } = useAuth();
+  const { login: authLogin, isAuthenticated } = useAuth();
   const { signIn, isLoaded: clerkLoaded } = useSignIn();
+  const clerk = useClerk();
+  const { isSignedIn } = useUser();
   
   const loginMutation = useMutation(api.auth.login);
   const register = useMutation(api.auth.register);
-  const getUserFromClerk = useMutation(api.auth.getUserFromClerk);
+  
+  // Check if Clerk auth state has changed
+  useEffect(() => {
+    if (isSignedIn && isAuthenticated) {
+      // If signed in with Clerk and authenticated in our context, redirect to home
+      console.log("Detected Clerk sign-in with authenticated context, redirecting to home");
+      navigate("/");
+    }
+  }, [isSignedIn, isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,17 +64,32 @@ export function Login({ isRegistering }: LoginProps) {
 
   const handleGoogleSignIn = async () => {
     try {
-      if (!clerkLoaded || !signIn) return;
+      if (!clerkLoaded || !signIn) {
+        setError("Authentication system not ready. Please try again.");
+        return;
+      }
+      
+      setIsProcessingGoogle(true);
+      setError("");
+      console.log("Starting Google sign-in process");
+      
+      // First sign out to clear any existing sessions
+      if (clerk.session) {
+        console.log("Clearing existing session");
+        await clerk.signOut();
+      }
       
       // Start Google OAuth flow
-      const result = await signIn.authenticateWithRedirect({
+      console.log("Redirecting to Google OAuth");
+      await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl: "/oauth-callback",
-        redirectUrlComplete: "/",
+        redirectUrl: window.location.origin + "/oauth-callback",
+        redirectUrlComplete: window.location.origin + "/",
       });
     } catch (error) {
       console.error("Google sign-in failed:", error);
       setError("Google sign-in failed. Please try again.");
+      setIsProcessingGoogle(false);
     }
   };
 
@@ -114,9 +140,9 @@ export function Login({ isRegistering }: LoginProps) {
           <button 
             onClick={handleGoogleSignIn}
             className={`${styles.loginButton} ${styles.googleButton}`}
-            disabled={!clerkLoaded}
+            disabled={!clerkLoaded || isProcessingGoogle}
           >
-            Continue with Google
+            {isProcessingGoogle ? "Processing..." : "Continue with Google"}
           </button>
           
           <div className={styles.toggleForm}>
