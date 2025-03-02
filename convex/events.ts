@@ -34,3 +34,35 @@ export const getByUserId = query({
       .collect();
   },
 });
+
+// Get all events from all users with creator username
+export const getAllEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    // First, get all users and create a userId -> username map
+    const allUsers = await ctx.db.query("users").collect();
+    const userMap = new Map();
+
+    // Create a map of user IDs to usernames
+    allUsers.forEach((user) => {
+      // Try adding both _id and clerkId to the map
+      userMap.set(user._id, user.username);
+      if (user.clerkId) {
+        userMap.set(user.clerkId, user.username);
+      }
+    });
+
+    // Get all events
+    const events = await ctx.db.query("events").collect();
+
+    // Add username to each event
+    const eventsWithUserInfo = events.map((event) => {
+      return {
+        ...event,
+        creatorName: userMap.get(event.userId) || "Unknown User",
+      };
+    });
+
+    return eventsWithUserInfo;
+  },
+});

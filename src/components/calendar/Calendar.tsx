@@ -21,6 +21,7 @@ interface CalendarEvent {
   title: string;
   start: string;
   end?: string;
+  creatorName?: string;
 }
 
 export const Calendar = ({ userId, username }: CalendarProps) => {
@@ -30,13 +31,17 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
 
   // Use Convex to manage events
   const createEvent = useMutation(api.events.create);
-  const userEvents =
-    useQuery(api.events.getByUserId, { userId: currentUserId }) || [];
+  // Get all events rather than just the current user's events
+  const allEvents = useQuery(api.events.getAllEvents) || [];
 
   // Transform Convex events to the format FullCalendar expects
-  const events = userEvents.map((event: any) => ({
+  const events = allEvents.map((event: any) => ({
     id: event._id,
-    title: event.title,
+    // Include creator name with the title
+    title:
+      event.creatorName && event.creatorName !== "Unknown User"
+        ? `${event.creatorName}: ${event.title}`
+        : event.title,
     start: event.start,
     end: event.end,
   }));
