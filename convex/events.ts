@@ -66,3 +66,27 @@ export const getAllEvents = query({
     return eventsWithUserInfo;
   },
 });
+
+// Update an existing event
+export const update = mutation({
+  args: {
+    id: v.id("events"),
+    title: v.string(),
+    start: v.string(),
+    end: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const event = await ctx.db.get(args.id);
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    await ctx.db.patch(args.id, {
+      title: args.title,
+      start: args.start,
+      end: args.end,
+    });
+
+    return args.id;
+  },
+});

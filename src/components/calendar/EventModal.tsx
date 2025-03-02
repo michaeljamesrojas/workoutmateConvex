@@ -60,6 +60,13 @@ interface EventModalProps {
   onClose: () => void;
   onSubmit: (eventData: { title: string; start: string; end: string }) => void;
   dateStr: string;
+  event: {
+    id?: any; // Convex ID type
+    title: string;
+    start: string;
+    end?: string;
+    creatorName?: string;
+  } | null;
 }
 
 export const EventModal: React.FC<EventModalProps> = ({
@@ -67,6 +74,7 @@ export const EventModal: React.FC<EventModalProps> = ({
   onClose,
   onSubmit,
   dateStr,
+  event,
 }) => {
   const [title, setTitle] = React.useState("");
   const [startDate, setStartDate] = React.useState(() =>
@@ -76,13 +84,20 @@ export const EventModal: React.FC<EventModalProps> = ({
     getInitialDate(dateStr, true)
   );
 
-  // Reset dates when modal opens with new dateStr
+  // Reset form when modal opens
   React.useEffect(() => {
     if (isOpen) {
-      setStartDate(getInitialDate(dateStr));
-      setEndDate(getInitialDate(dateStr, true));
+      if (event) {
+        setTitle(event.title);
+        setStartDate(getInitialDate(event.start));
+        setEndDate(getInitialDate(event.end || event.start));
+      } else {
+        setTitle("");
+        setStartDate(getInitialDate(dateStr));
+        setEndDate(getInitialDate(dateStr, true));
+      }
     }
-  }, [dateStr, isOpen]);
+  }, [dateStr, isOpen, event]);
 
   if (!isOpen) return null;
 
@@ -114,16 +129,16 @@ export const EventModal: React.FC<EventModalProps> = ({
   return (
     <div className={styles.modalOverlay}>
       <div className={styles.modal}>
-        <h2>Create New Event</h2>
+        <h2>{event ? "Edit Session" : "Create New Session"}</h2>
         <form onSubmit={handleSubmit}>
           <div className={styles.formGroup}>
-            <label htmlFor="title">Event Title</label>
+            <label htmlFor="title">Session Title</label>
             <input
               id="title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter event title"
+              placeholder="Enter session title"
               autoFocus
               required
             />
@@ -167,7 +182,7 @@ export const EventModal: React.FC<EventModalProps> = ({
               className={styles.submitButton}
               disabled={!title.trim() || !isValidDateRange}
             >
-              Create Event
+              {event ? "Update Session" : "Create Session"}
             </button>
           </div>
         </form>

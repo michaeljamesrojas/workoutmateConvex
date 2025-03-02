@@ -19,7 +19,7 @@ interface CalendarProps {
 
 // Define event interface following DDD
 interface CalendarEvent {
-  id?: string;
+  id?: any; // Convex ID type
   title: string;
   start: string;
   end?: string;
@@ -31,10 +31,13 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
   const currentUserId = userId as string;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null
+  );
 
   // Use Convex to manage events
   const createEvent = useMutation(api.events.create);
-  // Get all events rather than just the current user's events
+  const updateEvent = useMutation(api.events.update);
   const allEvents = useQuery(api.events.getAllEvents) || [];
 
   // Transform Convex events to the format FullCalendar expects
@@ -54,12 +57,31 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
 
   // Handle date click - open modal for new event creation
   const handleDateClick = (info: DateClickArg) => {
+    setSelectedEvent(null); // Clear any selected event
     setSelectedDate(info.dateStr);
     setIsModalOpen(true);
   };
 
-  // Handle event creation from modal
-  const handleEventCreate = async ({
+  // Handle event click - open modal for editing if user owns the event
+  const handleEventClick = (info: any) => {
+    const event = events.find((e) => e.id === info.event.id);
+    if (event?.creatorName === userDisplayName) {
+      const [, ...titleParts] = event.title.split(": ");
+      const eventTitle =
+        titleParts.length > 0 ? titleParts.join(": ") : event.title;
+      setSelectedEvent({
+        id: event.id,
+        title: eventTitle,
+        start: event.start,
+        end: event.end,
+        creatorName: event.creatorName,
+      });
+      setIsModalOpen(true);
+    }
+  };
+
+  // Handle event creation/update from modal
+  const handleEventSubmit = async ({
     title,
     start,
     end,
@@ -68,16 +90,22 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     start: string;
     end: string;
   }) => {
-    if (title && userId) {
-      const newEvent = {
+    if (selectedEvent?.id) {
+      // Update existing event
+      await updateEvent({
+        id: selectedEvent.id,
+        title,
+        start,
+        end,
+      });
+    } else if (userId) {
+      // Create new event
+      await createEvent({
         userId: currentUserId,
         title,
         start,
         end,
-      };
-
-      // Save the event to the Convex backend
-      await createEvent(newEvent);
+      });
     }
   };
 
@@ -96,6 +124,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     editable: true,
     selectable: true,
     dateClick: handleDateClick,
+    eventClick: handleEventClick,
     nowIndicator: true,
     scrollTime: "08:00:00",
     // Additional time slot configuration options
@@ -129,9 +158,13 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
       </main>
       <EventModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleEventCreate}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedEvent(null);
+        }}
+        onSubmit={handleEventSubmit}
         dateStr={selectedDate}
+        event={selectedEvent}
       />
     </div>
   );
