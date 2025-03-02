@@ -8,6 +8,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import styles from "./Calendar.module.css";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex";
+import { CalendarOptions } from "@fullcalendar/core";
 
 interface CalendarProps {
   userId: string | null;
@@ -62,7 +63,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
   };
 
   // Configure calendar options
-  const calendarOptions = {
+  const calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
     initialView: "timeGridWeek",
     weekends: true,
