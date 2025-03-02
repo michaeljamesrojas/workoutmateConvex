@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { useNavigate } from "react-router-dom";
 
 interface LoginProps {
   onLogin: (userId: string, username: string) => void;
+  isRegistering: boolean;
 }
 
-export function Login({ onLogin }: LoginProps) {
+export function Login({ onLogin, isRegistering }: LoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
   
   const login = useMutation(api.auth.login);
   const register = useMutation(api.auth.register);
@@ -73,7 +75,10 @@ export function Login({ onLogin }: LoginProps) {
           </button>
         </form>
         <div className="toggle-form">
-          <button onClick={() => setIsRegistering(!isRegistering)} className="link-button">
+          <button 
+            onClick={() => navigate(isRegistering ? "/login" : "/register")} 
+            className="link-button"
+          >
             {isRegistering 
               ? "Already have an account? Sign In" 
               : "Don't have an account? Register"}

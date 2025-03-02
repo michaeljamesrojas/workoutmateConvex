@@ -26,12 +26,12 @@ export default function App() {
   // When auth state changes, redirect appropriately
   useEffect(() => {
     if (!userId || !username) {
-      // Only redirect if we're not already on the login page
-      if (location.pathname !== "/login") {
+      // Only redirect if we're not already on a auth page
+      if (location.pathname !== "/login" && location.pathname !== "/register") {
         navigate("/login");
       }
-    } else if (location.pathname === "/login") {
-      // If logged in but on login page, redirect to chat
+    } else if (location.pathname === "/login" || location.pathname === "/register") {
+      // If logged in but on auth page, redirect to chat
       navigate("/");
     }
   }, [userId, username, navigate, location.pathname]);
@@ -107,7 +107,8 @@ export default function App() {
   // Main route structure
   return (
     <Routes>
-      <Route path="/login" element={<Login onLogin={handleLogin} />} />
+      <Route path="/login" element={<Login onLogin={handleLogin} isRegistering={false} />} />
+      <Route path="/register" element={<Login onLogin={handleLogin} isRegistering={true} />} />
       <Route path="/" element={<ChatComponent />} />
     </Routes>
   );
