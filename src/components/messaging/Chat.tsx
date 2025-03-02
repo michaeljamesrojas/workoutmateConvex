@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useAuth } from "../contexts/AuthContext";
-import { Header } from "./Header";
+import { api } from "../../../convex/_generated/api";
+import { useAuth } from "../../contexts/AuthContext";
+import { Header } from "../layout";
 import { MessageInput } from "./MessageInput";
 
 interface ChatProps {

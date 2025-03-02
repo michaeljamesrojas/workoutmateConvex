@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
-import { Login } from "./components/Login";
-import { Chat } from "./components/Chat";
+import { Login, ProtectedRoute } from "./components/auth";
+import { Chat } from "./components/messaging";
 import { useAuth } from "./contexts/AuthContext";
-import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export default function App() {
   const { userId, username, isAuthenticated } = useAuth();
