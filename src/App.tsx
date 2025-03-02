@@ -9,7 +9,7 @@ export default function App() {
   const { userId, username, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoaded: clerkLoaded } = useUser();
+  const { isLoaded: clerkLoaded, isSignedIn, user } = useUser();
 
   // When auth state changes, redirect appropriately
   useEffect(() => {
