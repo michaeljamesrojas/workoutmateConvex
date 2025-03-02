@@ -1,0 +1,142 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.modal h2 {
+  margin: 0 0 1.5rem 0;
+  color: var(--primary-text);
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--secondary-text);
+  font-weight: 500;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.formGroup input[type="datetime-local"] {
+  color: var(--primary-text);
+  background-color: white;
+  cursor: pointer;
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(243, 93, 28, 0.1);
+}
+
+.errorMessage {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.dateDisplay {
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 4px;
+  color: var(--secondary-text);
+}
+
+.buttonGroup {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.cancelButton,
+.submitButton {
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancelButton {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  color: var(--secondary-text);
+}
+
+.cancelButton:hover {
+  background-color: #f9fafb;
+}
+
+.submitButton {
+  background-color: var(--primary);
+  border: none;
+  color: white;
+}
+
+.submitButton:hover {
+  background-color: #e04d0f;
+}
+
+.submitButton:disabled {
+  background-color: #fca58a;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .modal {
+    background-color: #1f2937;
+  }
+
+  .formGroup input {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: white;
+  }
+
+  .formGroup input[type="datetime-local"] {
+    background-color: #374151;
+    color: white;
+  }
+
+  .formGroup input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+
+  .cancelButton {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+  }
+
+  .cancelButton:hover {
+    background-color: #4b5563;
+  }
+} 

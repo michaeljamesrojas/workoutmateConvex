@@ -10,6 +10,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex";
 import { CalendarOptions } from "@fullcalendar/core";
 import { CustomEvent } from "./CustomEvent";
+import { EventModal } from "./EventModal";
 
 interface CalendarProps {
   userId: string | null;
@@ -26,9 +27,10 @@ interface CalendarEvent {
 }
 
 export const Calendar = ({ userId, username }: CalendarProps) => {
-  // Since ProtectedRoute ensures we always have a username, we can safely assert it's non-null
   const userDisplayName = username as string;
   const currentUserId = userId as string;
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>("");
 
   // Use Convex to manage events
   const createEvent = useMutation(api.events.create);
@@ -50,20 +52,28 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     end: event.end,
   }));
 
-  // Handle date click - create a new event when a time slot is clicked
-  const handleDateClick = async (info: DateClickArg) => {
-    const title = prompt("Enter event title:"); // Simple prompt for event title
-    if (title && userId) {
-      // Calculate end time (1 hour after start time)
-      const startDate = new Date(info.date);
-      const endDate = new Date(startDate);
-      endDate.setHours(endDate.getHours() + 1);
+  // Handle date click - open modal for new event creation
+  const handleDateClick = (info: DateClickArg) => {
+    setSelectedDate(info.dateStr);
+    setIsModalOpen(true);
+  };
 
+  // Handle event creation from modal
+  const handleEventCreate = async ({
+    title,
+    start,
+    end,
+  }: {
+    title: string;
+    start: string;
+    end: string;
+  }) => {
+    if (title && userId) {
       const newEvent = {
         userId: currentUserId,
         title,
-        start: info.dateStr,
-        end: endDate.toISOString(),
+        start,
+        end,
       };
 
       // Save the event to the Convex backend
@@ -117,6 +127,12 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
       <main className={styles.calendar}>
         <FullCalendar {...calendarOptions} />
       </main>
+      <EventModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleEventCreate}
+        dateStr={selectedDate}
+      />
     </div>
   );
 };
