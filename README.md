@@ -1,6 +1,6 @@
-# Convex tutorial
+# Workoutmate
 
-You're just a few minutes away from having a chat app powered by Convex.
+A workout companion app powered by Convex.
 
 Follow the tutorial at
 [docs.convex.dev/tutorial](https://docs.convex.dev/tutorial) for instructions.

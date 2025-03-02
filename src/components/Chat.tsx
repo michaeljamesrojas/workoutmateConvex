@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { Navigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 import { useAuth } from "../contexts/AuthContext";
+import { Header } from "./Header";
 
 interface ChatProps {
   userId: string | null;
@@ -13,7 +14,6 @@ export const Chat = ({ userId, username }: ChatProps) => {
   const messages = useQuery(api.chat.getMessages);
   const sendMessage = useMutation(api.chat.sendMessage);
   const [newMessageText, setNewMessageText] = useState("");
-  const { logout } = useAuth();
 
   useEffect(() => {
     // Make sure scrollTo works on button click in Chrome
@@ -30,26 +30,20 @@ export const Chat = ({ userId, username }: ChatProps) => {
   }
   
   return (
-    <main className="chat">
-      <header>
-        <h1>Convex Chat</h1>
-        <p>
-          Connected as <strong>{username}</strong>
-          <button className="logout-button" onClick={logout}>
-            Logout
-          </button>
-        </p>
-      </header>
-      {messages?.map((message) => (
-        <article
-          key={message._id}
-          className={message.user === username ? "message-mine" : ""}
-        >
-          <div>{message.user}</div>
+    <div className="chat-container">
+      <Header username={username} />
+      <main className="chat">
+        {messages?.map((message) => (
+          <article
+            key={message._id}
+            className={message.user === username ? "message-mine" : ""}
+          >
+            <div>{message.user}</div>
 
-          <p>{message.body}</p>
-        </article>
-      ))}
+            <p>{message.body}</p>
+          </article>
+        ))}
+      </main>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -70,6 +64,6 @@ export const Chat = ({ userId, username }: ChatProps) => {
           Send
         </button>
       </form>
-    </main>
+    </div>
   );
 }; 
