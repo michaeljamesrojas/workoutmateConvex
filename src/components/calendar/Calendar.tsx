@@ -38,11 +38,14 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
   // Transform Convex events to the format FullCalendar expects
   const events = allEvents.map((event: any) => ({
     id: event._id,
-    // Include creator name with the title
+    creatorName: event.creatorName, // Keep the original creator name
+    // Include creator name with the title, show "You" for current user's events
     title:
-      event.creatorName && event.creatorName !== "Unknown User"
-        ? `${event.creatorName}: ${event.title}`
-        : event.title,
+      event.creatorName === userDisplayName
+        ? `You: ${event.title}`
+        : event.creatorName && event.creatorName !== "Unknown User"
+          ? `${event.creatorName}: ${event.title}`
+          : event.title,
     start: event.start,
     end: event.end,
   }));
@@ -98,7 +101,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
           minute: "2-digit",
         });
       const event = events.find((e) => e.id === arg.event.id);
-      const isCurrentUser = event?.title.startsWith(`${userDisplayName}: `);
+      const isCurrentUser = event?.creatorName === userDisplayName;
       return (
         <CustomEvent
           event={{ title: arg.event.title, timeText }}
