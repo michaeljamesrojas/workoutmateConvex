@@ -6,6 +6,8 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { Header } from "../layout";
 import { useAuth } from "../../contexts/AuthContext";
 import styles from "./Calendar.module.css";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex";
 
 interface CalendarProps {
   userId: string | null;
@@ -23,29 +25,33 @@ interface CalendarEvent {
 export const Calendar = ({ userId, username }: CalendarProps) => {
   // Since ProtectedRoute ensures we always have a username, we can safely assert it's non-null
   const userDisplayName = username as string;
+  const currentUserId = userId as string;
 
-  // Sample initial events - in a real application, these would come from your Convex backend
-  const [events, setEvents] = useState<CalendarEvent[]>([
-    { title: "Meeting", start: new Date().toISOString().split("T")[0] },
-    {
-      title: "Workout",
-      start: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-    },
-  ]);
+  // Use Convex to manage events
+  const createEvent = useMutation(api.events.create);
+  const userEvents =
+    useQuery(api.events.getByUserId, { userId: currentUserId }) || [];
+
+  // Transform Convex events to the format FullCalendar expects
+  const events = userEvents.map((event: any) => ({
+    id: event._id,
+    title: event.title,
+    start: event.start,
+    end: event.end,
+  }));
 
   // Handle date click - create a new event when a time slot is clicked
-  const handleDateClick = (info: any) => {
+  const handleDateClick = async (info: any) => {
     const title = prompt("Enter event title:"); // Simple prompt for event title
-    if (title) {
-      const newEvent: CalendarEvent = {
+    if (title && userId) {
+      const newEvent = {
+        userId: currentUserId,
         title,
         start: info.dateStr,
       };
 
-      setEvents([...events, newEvent]);
-
-      // In a real app, you would save this to your Convex backend
-      // Example: mutation.events.create({ title, start: info.dateStr, userId })
+      // Save the event to the Convex backend
+      await createEvent(newEvent);
     }
   };
 

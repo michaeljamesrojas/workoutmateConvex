@@ -15,4 +15,12 @@ export default defineSchema({
   })
     .index("by_username", ["username"])
     .index("by_clerkId", ["clerkId"]),
+
+  events: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    start: v.string(),
+    end: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_userId", ["userId"]),
 });
