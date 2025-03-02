@@ -68,7 +68,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     initialView: "timeGridWeek",
     weekends: true,
     events: events,
-    height: "auto",
+    height: "100%",
     headerToolbar: {
       left: "prev,next today",
       center: "title",
@@ -78,6 +78,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     selectable: true,
     dateClick: handleDateClick,
     nowIndicator: true,
+    scrollTime: "08:00:00",
   };
 
   return (

@@ -1,16 +1,24 @@
 .calendarContainer {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
   width: 100%;
   margin: 0 auto;
   padding: 0 1rem;
+  overflow: hidden; /* Prevent container scrolling */
 }
 
 .calendar {
   flex: 1;
   padding: 1rem 0;
   margin-bottom: 1rem;
+  position: relative; /* Ensure proper positioning for FullCalendar */
+  height: 100%; /* Take up all available space */
+}
+
+/* FullCalendar scrollbar styling */
+:global(.fc-scroller) {
+  overflow-y: auto !important; /* Force scrollbar to show */
 }
 
 /* Make the calendar responsive */
