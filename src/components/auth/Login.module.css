@@ -8,13 +8,47 @@
   background-color: var(--secondary-background);
 }
 
+.loginWrapper {
+  display: flex;
+  max-width: 900px;
+  width: 100%;
+  background-color: var(--bubbles-background);
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  overflow: hidden;
+}
+
 .loginCard {
   width: 100%;
   max-width: 400px;
   padding: 2rem;
   background-color: var(--bubbles-background);
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.imageContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  background-color: #f8f9fa;
+  padding: 2rem;
+}
+
+.workoutImage {
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+}
+
+/* Hide image on small screens */
+@media (max-width: 768px) {
+  .loginWrapper {
+    flex-direction: column;
+  }
+  
+  .imageContainer {
+    display: none;
+  }
 }
 
 .loginCard h1 {
