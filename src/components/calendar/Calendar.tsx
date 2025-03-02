@@ -9,6 +9,7 @@ import styles from "./Calendar.module.css";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex";
 import { CalendarOptions } from "@fullcalendar/core";
+import { CustomEvent } from "./CustomEvent";
 
 interface CalendarProps {
   userId: string | null;
@@ -89,6 +90,15 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     slotLabelInterval: "01:00:00", // Show labels every hour
     slotMinTime: "00:00:00", // Start at midnight
     slotMaxTime: "24:00:00", // End at midnight
+    eventContent: (arg) => {
+      const timeText =
+        arg.timeText ||
+        new Date(arg.event.startStr).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      return <CustomEvent event={{ title: arg.event.title, timeText }} />;
+    },
   };
 
   return (

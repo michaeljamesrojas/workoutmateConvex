@@ -1,0 +1,30 @@
+.customEvent {
+  padding: 4px 6px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  overflow: hidden;
+}
+
+.eventTime {
+  font-size: 0.75rem;
+  color: var(--tertiary-text);
+  opacity: 0.9;
+}
+
+.eventCreator {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.eventTitle {
+  font-weight: 500;
+  color: var(--primary-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+} 
