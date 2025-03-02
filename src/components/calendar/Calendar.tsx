@@ -44,10 +44,16 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
   const handleDateClick = async (info: DateClickArg) => {
     const title = prompt("Enter event title:"); // Simple prompt for event title
     if (title && userId) {
+      // Calculate end time (1 hour after start time)
+      const startDate = new Date(info.date);
+      const endDate = new Date(startDate);
+      endDate.setHours(endDate.getHours() + 1);
+
       const newEvent = {
         userId: currentUserId,
         title,
         start: info.dateStr,
+        end: endDate.toISOString(),
       };
 
       // Save the event to the Convex backend
