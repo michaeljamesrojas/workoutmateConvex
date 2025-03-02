@@ -11,14 +11,15 @@
 
 .eventTime {
   font-size: 0.75rem;
+  font-weight: 700;
   color: var(--tertiary-text);
   opacity: 0.9;
 }
 
 .eventCreator {
   font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--primary);
+  font-weight: 800;
+  color: var(--primary-text);
 }
 
 .eventTitle {
