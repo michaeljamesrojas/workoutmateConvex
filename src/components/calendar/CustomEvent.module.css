@@ -10,6 +10,17 @@
   background-color: #90caf9; /* Light blue color */
 }
 
+.currentUserEvent {
+  background-color: var(--primary); /* Orange color for user's own events */
+  color: white;
+}
+
+.currentUserEvent .eventTime,
+.currentUserEvent .eventCreator,
+.currentUserEvent .eventTitle {
+  color: white;
+}
+
 .eventTime {
   font-size: 0.75rem;
   font-weight: 700;

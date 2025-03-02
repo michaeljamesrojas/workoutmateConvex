@@ -97,7 +97,14 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
           hour: "2-digit",
           minute: "2-digit",
         });
-      return <CustomEvent event={{ title: arg.event.title, timeText }} />;
+      const event = events.find((e) => e.id === arg.event.id);
+      const isCurrentUser = event?.title.startsWith(`${userDisplayName}: `);
+      return (
+        <CustomEvent
+          event={{ title: arg.event.title, timeText }}
+          isCurrentUser={isCurrentUser}
+        />
+      );
     },
   };
 
