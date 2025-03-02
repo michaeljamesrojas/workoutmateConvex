@@ -9,6 +9,7 @@
   overflow: hidden;
   background-color: #90caf9; /* Light blue color for other users */
   border: 1px solid #64b5f6; /* Slightly darker blue for border */
+  position: relative;
 }
 
 .customEvent:global(.fc-event) {
@@ -47,4 +48,34 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.editButton {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  padding: 3px 6px;
+  font-size: 12px;
+  opacity: 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  backdrop-filter: blur(2px);
+}
+
+.currentUserEvent:hover .editButton {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.editButton:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
 } 

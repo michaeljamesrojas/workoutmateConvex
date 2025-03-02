@@ -27,6 +27,12 @@ export const CustomEvent: React.FC<CustomEventProps> = ({
         <div className={styles.eventCreator}>{creatorName}</div>
       )}
       <div className={styles.eventTitle}>{eventTitle}</div>
+      {isCurrentUser && (
+        <button className={styles.editButton}>
+          <span>✎</span>
+          <span>Edit</span>
+        </button>
+      )}
     </div>
   );
 };
