@@ -66,7 +66,9 @@ export const login = mutation({
     }
 
     // If user doesn't exist, throw an error instead of creating a new account
-    throw new Error("User not found. Please register first.");
+    throw new Error(
+      "Account not found. Please register before attempting to sign in."
+    );
   },
 });
 

@@ -33,7 +33,15 @@ export function Login({ onLogin, isRegistering }: LoginProps) {
       onLogin(user.userId, user.username);
     } catch (error) {
       console.error("Authentication failed:", error);
-      setError(error instanceof Error ? error.message : "Authentication failed");
+      let errorMessage = "Authentication failed";
+      if (error instanceof Error) {
+        const errorText = error.message;
+        const userMessageMatch = errorText.match(/Error:\s*(.*?)(?:\s+at\s+|$)/);
+        if (userMessageMatch && userMessageMatch[1]) {
+          errorMessage = userMessageMatch[1];
+        }
+      }
+      setError(errorMessage);
     }
   };
 
