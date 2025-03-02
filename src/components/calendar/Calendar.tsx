@@ -14,11 +14,14 @@ interface CalendarProps {
 export const Calendar = ({ userId, username }: CalendarProps) => {
   // Since ProtectedRoute ensures we always have a username, we can safely assert it's non-null
   const userDisplayName = username as string;
-  
+
   // Sample initial events - in a real application, these would come from your Convex backend
   const [events] = useState([
-    { title: 'Meeting', start: new Date().toISOString().split('T')[0] },
-    { title: 'Workout', start: new Date(Date.now() + 86400000).toISOString().split('T')[0] }
+    { title: "Meeting", start: new Date().toISOString().split("T")[0] },
+    {
+      title: "Workout",
+      start: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+    }
   ]);
 
   return (
@@ -32,12 +35,12 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
           events={events}
           height="auto"
           headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay",
           }}
         />
       </main>
     </div>
   );
-}; 
+};
