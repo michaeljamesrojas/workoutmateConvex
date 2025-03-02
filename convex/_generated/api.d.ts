@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
+import type * as internal_ from "../internal.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -27,6 +28,7 @@ import type * as chat from "../chat.js";
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   chat: typeof chat;
+  internal: typeof internal_;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

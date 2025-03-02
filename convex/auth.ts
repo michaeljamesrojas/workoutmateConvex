@@ -1,25 +1,21 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import bcrypt from "bcryptjs";
 
-// Simple hash function for passwords (in a production app, use bcrypt or similar)
-// Convex doesn't support native bcrypt yet, so this is a simplified version
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+// We'll use synchronous versions of bcrypt functions to avoid setTimeout incompatibility
+// These are slower but more compatible with Convex's limitations
+
+// Password management using bcryptjs (synchronous version)
+function hashPasswordSync(password: string): string {
+  // Use 10 rounds (standard secure value)
+  const salt = bcrypt.genSaltSync(10);
+  return bcrypt.hashSync(password, salt);
 }
 
-// Verify password against stored hash
-async function verifyPassword(
-  password: string,
-  hash: string
-): Promise<boolean> {
-  const passwordHash = await hashPassword(password);
-  return passwordHash === hash;
+// Verify password against stored hash (synchronous version)
+function verifyPasswordSync(password: string, hash: string): boolean {
+  return bcrypt.compareSync(password, hash);
 }
 
 /**
@@ -46,7 +42,7 @@ export const login = mutation({
       // If the user was created before passwords were implemented, they may not have a password
       if (!existingUser.password) {
         // Update the user with a password
-        const passwordHash = await hashPassword(args.password);
+        const passwordHash = hashPasswordSync(args.password);
         await ctx.db.patch(existingUser._id, { password: passwordHash });
         return {
           userId: existingUser._id,
@@ -55,7 +51,7 @@ export const login = mutation({
       }
 
       // Verify password
-      const isPasswordValid = await verifyPassword(
+      const isPasswordValid = verifyPasswordSync(
         args.password,
         existingUser.password
       );
@@ -70,7 +66,7 @@ export const login = mutation({
     }
 
     // If user doesn't exist, create a new user with password
-    const passwordHash = await hashPassword(args.password);
+    const passwordHash = hashPasswordSync(args.password);
     const userId = await ctx.db.insert("users", {
       username: args.username,
       password: passwordHash,
@@ -108,7 +104,7 @@ export const register = mutation({
     }
 
     // Create a new user
-    const passwordHash = await hashPassword(args.password);
+    const passwordHash = hashPasswordSync(args.password);
     const userId = await ctx.db.insert("users", {
       username: args.username,
       password: passwordHash,
