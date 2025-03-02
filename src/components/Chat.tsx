@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useEffect } from "react";
+import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuth } from "../contexts/AuthContext";
 import { Header } from "./Header";
+import { MessageInput } from "./MessageInput";
 
 interface ChatProps {
   userId: string | null;
@@ -11,8 +12,6 @@ interface ChatProps {
 
 export const Chat = ({ userId, username }: ChatProps) => {
   const messages = useQuery(api.chat.getMessages);
-  const sendMessage = useMutation(api.chat.sendMessage);
-  const [newMessageText, setNewMessageText] = useState("");
 
   useEffect(() => {
     // Make sure scrollTo works on button click in Chrome
@@ -41,26 +40,7 @@ export const Chat = ({ userId, username }: ChatProps) => {
           </article>
         ))}
       </main>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          await sendMessage({ user: userDisplayName, body: newMessageText });
-          setNewMessageText("");
-        }}
-      >
-        <input
-          value={newMessageText}
-          onChange={async (e) => {
-            const text = e.target.value;
-            setNewMessageText(text);
-          }}
-          placeholder="Write a message…"
-          autoFocus
-        />
-        <button type="submit" disabled={!newMessageText}>
-          Send
-        </button>
-      </form>
+      <MessageInput username={userDisplayName} />
     </div>
   );
 }; 
