@@ -65,18 +65,8 @@ export const login = mutation({
       };
     }
 
-    // If user doesn't exist, create a new user with password
-    const passwordHash = hashPasswordSync(args.password);
-    const userId = await ctx.db.insert("users", {
-      username: args.username,
-      password: passwordHash,
-      createdAt: Date.now(),
-    });
-
-    return {
-      userId,
-      username: args.username,
-    };
+    // If user doesn't exist, throw an error instead of creating a new account
+    throw new Error("User not found. Please register first.");
   },
 });
 
