@@ -11,6 +11,9 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.24.1",
     "@faker-js/faker": "^8.0.2",
+    "@fullcalendar/core": "^6.1.15",
+    "@fullcalendar/daygrid": "^6.1.15",
+    "@fullcalendar/react": "^6.1.15",
     "bcryptjs": "^3.0.2",
     "convex": "1.18.0",
     "prettier": "3.4.2",

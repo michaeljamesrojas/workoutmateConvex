@@ -1,0 +1,30 @@
+.calendarContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.calendar {
+  flex: 1;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+}
+
+/* Make the calendar responsive */
+@media (max-width: 768px) {
+  .calendarContainer {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Customize FullCalendar appearance */
+:global(.fc) {
+  font-family: inherit;
+}
+
+:global(.fc-daygrid-day.fc-day-today) {
+  background-color: rgba(var(--accent-light-rgb), 0.2);
+} 

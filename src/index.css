@@ -1,3 +1,5 @@
+/* Import FullCalendar styles - not needed for v6+ as styles are included in the JS bundle */
+
 /* Design System and Global Styles */
 * {
   box-sizing: border-box;

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Login, ProtectedRoute, OAuthCallback } from "./components/auth";
-import { Chat } from "./components/messaging";
+import { Calendar } from "./components/calendar";
 import { useAuth } from "./contexts/AuthContext";
 import { useUser } from "@clerk/clerk-react";
 
@@ -29,7 +29,7 @@ export default function App() {
         navigate("/login");
       }
     } else if (location.pathname === "/login" || location.pathname === "/register") {
-      // If logged in but on auth page, redirect to chat
+      // If logged in but on auth page, redirect to home
       console.log("Already authenticated, redirecting to home");
       navigate("/");
     }
@@ -45,7 +45,7 @@ export default function App() {
         path="/" 
         element={
           <ProtectedRoute>
-            <Chat userId={userId} username={username} />
+            <Calendar userId={userId} username={username} />
           </ProtectedRoute>
         } 
       />
