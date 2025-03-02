@@ -420,3 +420,32 @@ article button span {
 .logout-button:hover {
   background-color: #dc2626;
 }
+
+/* Add these styles for the error message and toggle form button */
+.error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  border-left: 4px solid #c62828;
+}
+
+.toggle-form {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #2962ff;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.link-button:hover {
+  color: #0039cb;
+}

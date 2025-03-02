@@ -9,6 +9,7 @@ export default defineSchema({
 
   users: defineTable({
     username: v.string(),
+    password: v.string(),
     createdAt: v.number(),
   }).index("by_username", ["username"]),
 });
