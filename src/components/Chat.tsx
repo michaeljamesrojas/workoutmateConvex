@@ -2,17 +2,18 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { Navigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
+import { useAuth } from "../contexts/AuthContext";
 
 interface ChatProps {
   userId: string | null;
   username: string | null;
-  handleLogout: () => void;
 }
 
-export const Chat = ({ userId, username, handleLogout }: ChatProps) => {
+export const Chat = ({ userId, username }: ChatProps) => {
   const messages = useQuery(api.chat.getMessages);
   const sendMessage = useMutation(api.chat.sendMessage);
   const [newMessageText, setNewMessageText] = useState("");
+  const { logout } = useAuth();
 
   useEffect(() => {
     // Make sure scrollTo works on button click in Chrome
@@ -34,7 +35,7 @@ export const Chat = ({ userId, username, handleLogout }: ChatProps) => {
         <h1>Convex Chat</h1>
         <p>
           Connected as <strong>{username}</strong>
-          <button className="logout-button" onClick={handleLogout}>
+          <button className="logout-button" onClick={logout}>
             Logout
           </button>
         </p>

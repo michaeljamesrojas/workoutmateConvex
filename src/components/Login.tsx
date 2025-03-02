@@ -2,19 +2,20 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 interface LoginProps {
-  onLogin: (userId: string, username: string) => void;
   isRegistering: boolean;
 }
 
-export function Login({ onLogin, isRegistering }: LoginProps) {
+export function Login({ isRegistering }: LoginProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
   
-  const login = useMutation(api.auth.login);
+  const loginMutation = useMutation(api.auth.login);
   const register = useMutation(api.auth.register);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,9 +29,9 @@ export function Login({ onLogin, isRegistering }: LoginProps) {
       if (isRegistering) {
         user = await register({ username: username.trim(), password: password.trim() });
       } else {
-        user = await login({ username: username.trim(), password: password.trim() });
+        user = await loginMutation({ username: username.trim(), password: password.trim() });
       }
-      onLogin(user.userId, user.username);
+      authLogin(user.userId, user.username);
     } catch (error) {
       console.error("Authentication failed:", error);
       let errorMessage = "Authentication failed";

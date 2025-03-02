@@ -1,19 +1,17 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { api } from "../convex/_generated/api";
+import { useEffect } from "react";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Login } from "./components/Login";
 import { Chat } from "./components/Chat";
+import { useAuth } from "./contexts/AuthContext";
 
 export default function App() {
-  const navigate = useNavigate();
+  const { userId, username, isAuthenticated } = useAuth();
   const location = useLocation();
-
-  const [userId, setUserId] = useState<string | null>(localStorage.getItem("userId"));
-  const [username, setUsername] = useState<string | null>(localStorage.getItem("username"));
+  const navigate = useNavigate();
 
   // When auth state changes, redirect appropriately
   useEffect(() => {
-    if (!userId || !username) {
+    if (!isAuthenticated) {
       // Only redirect if we're not already on a auth page
       if (location.pathname !== "/login" && location.pathname !== "/register") {
         navigate("/login");
@@ -22,30 +20,14 @@ export default function App() {
       // If logged in but on auth page, redirect to chat
       navigate("/");
     }
-  }, [userId, username, navigate, location.pathname]);
-
-  const handleLogin = (newUserId: string, newUsername: string) => {
-    localStorage.setItem("userId", newUserId);
-    localStorage.setItem("username", newUsername);
-    setUserId(newUserId);
-    setUsername(newUsername);
-    navigate("/");
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("userId");
-    localStorage.removeItem("username");
-    setUserId(null);
-    setUsername(null);
-    navigate("/login");
-  };
+  }, [isAuthenticated, navigate, location.pathname]);
 
   // Main route structure
   return (
     <Routes>
-      <Route path="/login" element={<Login onLogin={handleLogin} isRegistering={false} />} />
-      <Route path="/register" element={<Login onLogin={handleLogin} isRegistering={true} />} />
-      <Route path="/" element={<Chat userId={userId} username={username} handleLogout={handleLogout} />} />
+      <Route path="/login" element={<Login isRegistering={false} />} />
+      <Route path="/register" element={<Login isRegistering={true} />} />
+      <Route path="/" element={<Chat userId={userId} username={username} />} />
     </Routes>
   );
 }
