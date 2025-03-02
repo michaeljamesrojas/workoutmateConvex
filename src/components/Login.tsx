@@ -38,7 +38,8 @@ export function Login({ onLogin }: LoginProps) {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1>{isRegistering ? "Create Account" : "Sign In"}</h1>
+        <h1>Convex Chat</h1>
+        <h2>{isRegistering ? "Create Account" : "Sign In"}</h2>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="input-group">

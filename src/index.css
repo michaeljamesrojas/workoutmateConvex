@@ -359,9 +359,16 @@ article button span {
 }
 
 .login-card h1 {
+  color: var(--primary);
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.login-card h2 {
+  margin-top: 0;
   margin-bottom: 1.5rem;
-  text-align: center;
-  color: #333;
+  color: var(--secondary-text);
+  font-size: 1.5rem;
 }
 
 .input-group {
