@@ -7,16 +7,23 @@ interface CustomEventProps {
     timeText: string;
   };
   isCurrentUser: boolean;
+  onEditClick?: (e: React.MouseEvent) => void;
 }
 
 export const CustomEvent: React.FC<CustomEventProps> = ({
   event,
   isCurrentUser,
+  onEditClick,
 }) => {
   // Split the title to separate creator name and event title if present
   const [creatorName, ...titleParts] = event.title.split(": ");
   const eventTitle =
     titleParts.length > 0 ? titleParts.join(": ") : creatorName;
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event click from triggering
+    onEditClick?.(e);
+  };
 
   return (
     <div
@@ -28,7 +35,7 @@ export const CustomEvent: React.FC<CustomEventProps> = ({
       )}
       <div className={styles.eventTitle}>{eventTitle}</div>
       {isCurrentUser && (
-        <button className={styles.editButton}>
+        <button className={styles.editButton} onClick={handleEditClick}>
           <span>✎</span>
           <span>Edit</span>
         </button>

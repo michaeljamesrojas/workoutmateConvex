@@ -11,29 +11,32 @@ import { api } from "../../convex";
 import { CalendarOptions } from "@fullcalendar/core";
 import { CustomEvent } from "./CustomEvent";
 import { EventModal } from "./EventModal";
+import { SessionDetailsModal } from "./SessionDetailsModal";
+import { Id } from "../../../convex/_generated/dataModel";
 
 interface CalendarProps {
   userId: string | null;
   username: string | null;
 }
 
-// Define event interface following DDD
 interface CalendarEvent {
-  id?: any; // Convex ID type
+  id: Id<"events">;
   title: string;
   start: string;
-  end?: string;
-  creatorName?: string;
+  end: string;
+  creatorName: string;
 }
 
 export const Calendar = ({ userId, username }: CalendarProps) => {
   const userDisplayName = username as string;
   const currentUserId = userId as string;
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
   );
+  const [viewingEvent, setViewingEvent] = useState<CalendarEvent | null>(null);
 
   // Use Convex to manage events
   const createEvent = useMutation(api.events.create);
@@ -62,20 +65,51 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     setIsModalOpen(true);
   };
 
-  // Handle event click - open modal for editing if user owns the event
+  // Handle event click - show details modal for all events
   const handleEventClick = (info: any) => {
     const event = events.find((e) => e.id === info.event.id);
-    if (event?.creatorName === userDisplayName) {
-      const [, ...titleParts] = event.title.split(": ");
-      const eventTitle =
-        titleParts.length > 0 ? titleParts.join(": ") : event.title;
-      setSelectedEvent({
-        id: event.id,
-        title: eventTitle,
-        start: event.start,
-        end: event.end,
-        creatorName: event.creatorName,
-      });
+    if (!event) return;
+
+    const [, ...titleParts] = event.title.split(": ");
+    const eventTitle =
+      titleParts.length > 0 ? titleParts.join(": ") : event.title;
+    const eventData = {
+      id: event.id,
+      title: eventTitle,
+      start: event.start,
+      end: event.end,
+      creatorName: event.creatorName,
+    };
+
+    setViewingEvent(eventData);
+    setIsDetailsModalOpen(true);
+  };
+
+  // Handle direct edit click from the event
+  const handleEventEditClick = (info: any) => {
+    const event = events.find((e) => e.id === info.event.id);
+    if (!event) return;
+
+    const [, ...titleParts] = event.title.split(": ");
+    const eventTitle =
+      titleParts.length > 0 ? titleParts.join(": ") : event.title;
+    const eventData = {
+      id: event.id,
+      title: eventTitle,
+      start: event.start,
+      end: event.end,
+      creatorName: event.creatorName,
+    };
+
+    setSelectedEvent(eventData);
+    setIsModalOpen(true);
+  };
+
+  // Handle switching from details to edit mode
+  const handleEditEvent = () => {
+    if (viewingEvent) {
+      setSelectedEvent(viewingEvent);
+      setIsDetailsModalOpen(false);
       setIsModalOpen(true);
     }
   };
@@ -145,6 +179,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
         <CustomEvent
           event={{ title: arg.event.title, timeText }}
           isCurrentUser={isCurrentUser}
+          onEditClick={() => handleEventEditClick(arg)}
         />
       );
     },
@@ -165,6 +200,16 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
         onSubmit={handleEventSubmit}
         dateStr={selectedDate}
         event={selectedEvent}
+      />
+      <SessionDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => {
+          setIsDetailsModalOpen(false);
+          setViewingEvent(null);
+        }}
+        event={viewingEvent}
+        isOwnEvent={viewingEvent?.creatorName === userDisplayName}
+        onEdit={handleEditEvent}
       />
     </div>
   );
