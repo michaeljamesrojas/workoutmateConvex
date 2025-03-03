@@ -1,9 +1,7 @@
-import { useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "convex/react";
+import { useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "convex/react";
 import { api } from "../../convex";
-import { useAuth } from "../../contexts/AuthContext";
-import { Header } from "../layout";
 import { MessageInput } from "./MessageInput";
 import styles from "./Chat.module.css";
 
@@ -14,7 +12,7 @@ interface SessionChatProps {
 
 export const SessionChat = ({ userId, username }: SessionChatProps) => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const navigate = useNavigate();
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Get session details
   const session = useQuery(api.events.getEventById, { id: sessionId || "" });
@@ -24,14 +22,10 @@ export const SessionChat = ({ userId, username }: SessionChatProps) => {
   });
 
   useEffect(() => {
-    // Make sure scrollTo works on button click in Chrome
-    if (messages) {
-      setTimeout(() => {
-        window.scrollTo({
-          top: document.body.scrollHeight,
-          behavior: "smooth",
-        });
-      }, 0);
+    // Scroll to bottom when messages change
+    if (messages && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -44,14 +38,7 @@ export const SessionChat = ({ userId, username }: SessionChatProps) => {
 
   return (
     <div className={styles.chatContainer}>
-      <Header username={userDisplayName} />
-      <div className={styles.sessionHeader}>
-        <button className={styles.backButton} onClick={() => navigate(-1)}>
-          ← Back
-        </button>
-        <h1>{session?.title || "Session Chat"}</h1>
-      </div>
-      <main className={styles.chat}>
+      <main className={styles.chat} ref={chatContainerRef}>
         {messages?.length === 0 ? (
           <div className={styles.emptyState}>
             No messages yet. Start the conversation!
@@ -68,7 +55,9 @@ export const SessionChat = ({ userId, username }: SessionChatProps) => {
           ))
         )}
       </main>
-      <MessageInput username={userDisplayName} sessionId={sessionId} />
+      <div className={styles.inputContainer}>
+        <MessageInput username={userDisplayName} sessionId={sessionId} />
+      </div>
     </div>
   );
 };

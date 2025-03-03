@@ -1,0 +1,96 @@
+.sessionContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sessionHeader {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-accent, #f5f5f5);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  min-height: 48px;
+}
+
+.sessionHeader h1 {
+  margin: 0 0 0 1rem;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.backButton {
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.backButton:hover {
+  background-color: var(--bg-hover, #eaeaea);
+}
+
+.sessionContent {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 110px); /* Account for header and other UI elements */
+}
+
+.mainArea {
+  flex: 3;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mainArea > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarArea {
+  flex: 1;
+  border-left: 1px solid var(--border-color, #e0e0e0);
+  max-width: 450px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Ensure content doesn't overflow */
+  padding: 0; /* Remove padding */
+  background-color: white;
+}
+
+/* Ensure the chat container inside sidebarArea takes full height */
+.sidebarArea > div {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  width: 100%; /* Ensure full width */
+}
+
+/* Responsive design - stack on small screens */
+@media (max-width: 768px) {
+  .sessionContent {
+    flex-direction: column;
+    height: calc(100vh - 110px);
+  }
+  
+  .mainArea {
+    flex: 1;
+    min-height: 450px;
+  }
+  
+  .sidebarArea {
+    max-width: none;
+    border-left: none;
+    border-top: 1px solid var(--border-color, #e0e0e0);
+    flex: 1;
+    min-height: 300px;
+  }
+} 

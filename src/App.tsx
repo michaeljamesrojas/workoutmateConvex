@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Login, ProtectedRoute, OAuthCallback } from "./components/auth";
 import { Calendar } from "./components/calendar";
-import { SessionChat } from "./components/messaging";
+import { Session } from "./components/session";
 import { useAuth } from "./contexts/AuthContext";
 import { useUser } from "@clerk/clerk-react";
 
@@ -57,7 +57,7 @@ export default function App() {
         path="/session/:sessionId"
         element={
           <ProtectedRoute>
-            <SessionChat userId={userId} username={username} />
+            <Session userId={userId} username={username} />
           </ProtectedRoute>
         }
       />
