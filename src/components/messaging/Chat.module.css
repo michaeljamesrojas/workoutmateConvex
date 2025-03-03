@@ -85,6 +85,19 @@
   background-color: var(--bg-hover, #eaeaea);
 }
 
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-secondary, #777);
+  font-style: italic;
+  text-align: center;
+  background-color: var(--bg-light, #f9f9f9);
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
 @keyframes message {
   from {
     opacity: 0;

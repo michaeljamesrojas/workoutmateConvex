@@ -18,7 +18,10 @@ export const SessionChat = ({ userId, username }: SessionChatProps) => {
 
   // Get session details
   const session = useQuery(api.events.getEventById, { id: sessionId || "" });
-  const messages = useQuery(api.chat.getMessages);
+  // Use session-specific messages instead of all messages
+  const messages = useQuery(api.chat.getSessionMessages, {
+    sessionId: sessionId || "",
+  });
 
   useEffect(() => {
     // Make sure scrollTo works on button click in Chrome
@@ -49,17 +52,23 @@ export const SessionChat = ({ userId, username }: SessionChatProps) => {
         <h1>{session?.title || "Session Chat"}</h1>
       </div>
       <main className={styles.chat}>
-        {messages?.map((message) => (
-          <article
-            key={message._id}
-            className={`${styles.messageArticle} ${message.user === userDisplayName ? styles.messageMine : ""}`}
-          >
-            <div>{message.user}</div>
-            <p>{message.body}</p>
-          </article>
-        ))}
+        {messages?.length === 0 ? (
+          <div className={styles.emptyState}>
+            No messages yet. Start the conversation!
+          </div>
+        ) : (
+          messages?.map((message) => (
+            <article
+              key={message._id}
+              className={`${styles.messageArticle} ${message.user === userDisplayName ? styles.messageMine : ""}`}
+            >
+              <div>{message.user}</div>
+              <p>{message.body}</p>
+            </article>
+          ))
+        )}
       </main>
-      <MessageInput username={userDisplayName} />
+      <MessageInput username={userDisplayName} sessionId={sessionId} />
     </div>
   );
 };

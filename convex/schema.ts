@@ -5,7 +5,8 @@ export default defineSchema({
   messages: defineTable({
     user: v.string(),
     body: v.string(),
-  }),
+    sessionId: v.optional(v.string()),
+  }).index("by_sessionId", ["sessionId"]),
 
   users: defineTable({
     username: v.string(),

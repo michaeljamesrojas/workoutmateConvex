@@ -5,15 +5,20 @@ import styles from "./MessageInput.module.css";
 
 interface MessageInputProps {
   username: string;
+  sessionId?: string; // Make sessionId optional for backward compatibility
 }
 
-export const MessageInput = ({ username }: MessageInputProps) => {
+export const MessageInput = ({ username, sessionId }: MessageInputProps) => {
   const sendMessage = useMutation(api.chat.sendMessage);
   const [newMessageText, setNewMessageText] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await sendMessage({ user: username, body: newMessageText });
+    await sendMessage({
+      user: username,
+      body: newMessageText,
+      sessionId,
+    });
     setNewMessageText("");
   };
 
@@ -26,9 +31,13 @@ export const MessageInput = ({ username }: MessageInputProps) => {
         autoFocus
         className={styles.input}
       />
-      <button type="submit" disabled={!newMessageText} className={styles.button}>
+      <button
+        type="submit"
+        disabled={!newMessageText}
+        className={styles.button}
+      >
         Send
       </button>
     </form>
   );
-}; 
+};
