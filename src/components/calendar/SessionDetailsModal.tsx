@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import styles from "./SessionDetailsModal.module.css";
 
 interface SessionDetailsModalProps {
@@ -9,6 +10,7 @@ interface SessionDetailsModalProps {
     start: string;
     end: string;
     creatorName: string;
+    id: string;
   } | null;
   isOwnEvent?: boolean;
   onEdit?: () => void;
@@ -21,11 +23,18 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
   isOwnEvent = false,
   onEdit,
 }) => {
+  const navigate = useNavigate();
+
   if (!isOpen || !event) return null;
 
   // Format dates for display
   const startDate = new Date(event.start).toLocaleString();
   const endDate = new Date(event.end).toLocaleString();
+
+  const handleEnterSession = () => {
+    navigate(`/session/${event.id}`);
+    onClose();
+  };
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
@@ -54,13 +63,16 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
             <span>{endDate}</span>
           </div>
         </div>
-        {isOwnEvent && onEdit && (
-          <div className={styles.modalFooter}>
+        <div className={styles.modalFooter}>
+          <button onClick={handleEnterSession} className={styles.enterButton}>
+            Enter Session
+          </button>
+          {isOwnEvent && onEdit && (
             <button onClick={onEdit} className={styles.editButton}>
               Edit Session
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

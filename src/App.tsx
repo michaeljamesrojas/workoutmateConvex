@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Login, ProtectedRoute, OAuthCallback } from "./components/auth";
 import { Calendar } from "./components/calendar";
+import { SessionChat } from "./components/messaging";
 import { useAuth } from "./contexts/AuthContext";
 import { useUser } from "@clerk/clerk-react";
 
@@ -21,14 +22,17 @@ export default function App() {
     if (!isAuthenticated) {
       // Only redirect if we're not already on a auth page
       if (
-        location.pathname !== "/login" && 
+        location.pathname !== "/login" &&
         location.pathname !== "/register" &&
         location.pathname !== "/oauth-callback"
       ) {
         console.log("Not authenticated, redirecting to login");
         navigate("/login");
       }
-    } else if (location.pathname === "/login" || location.pathname === "/register") {
+    } else if (
+      location.pathname === "/login" ||
+      location.pathname === "/register"
+    ) {
       // If logged in but on auth page, redirect to home
       console.log("Already authenticated, redirecting to home");
       navigate("/");
@@ -41,13 +45,21 @@ export default function App() {
       <Route path="/login" element={<Login isRegistering={false} />} />
       <Route path="/register" element={<Login isRegistering={true} />} />
       <Route path="/oauth-callback" element={<OAuthCallback />} />
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
           <ProtectedRoute>
             <Calendar userId={userId} username={username} />
           </ProtectedRoute>
-        } 
+        }
+      />
+      <Route
+        path="/session/:sessionId"
+        element={
+          <ProtectedRoute>
+            <SessionChat userId={userId} username={username} />
+          </ProtectedRoute>
+        }
       />
     </Routes>
   );

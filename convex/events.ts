@@ -90,3 +90,56 @@ export const update = mutation({
     return args.id;
   },
 });
+
+// Get a single event by ID
+export const getEventById = query({
+  args: {
+    id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!args.id) {
+      return null;
+    }
+
+    try {
+      // First, get all users and create a userId -> username map
+      const allUsers = await ctx.db.query("users").collect();
+      const userMap = new Map();
+
+      // Create a map of user IDs to usernames
+      allUsers.forEach((user) => {
+        userMap.set(user._id, user.username);
+        if (user.clerkId) {
+          userMap.set(user.clerkId, user.username);
+        }
+      });
+
+      // Get the event by ID
+      try {
+        const eventId = args.id as any; // Convert to any to avoid type issues
+        const event = await ctx.db.get(eventId);
+
+        if (!event) {
+          return null;
+        }
+
+        // Check if it's actually an event (has userId field)
+        if ("userId" in event) {
+          // Add creator name to the event
+          return {
+            ...event,
+            creatorName: userMap.get(event.userId) || "Unknown User",
+          };
+        }
+
+        return null;
+      } catch (error) {
+        console.error("Error getting event:", error);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching event by ID:", error);
+      return null;
+    }
+  },
+});
