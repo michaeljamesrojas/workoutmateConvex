@@ -13,6 +13,7 @@ import { CustomEvent } from "./CustomEvent";
 import { EventModal } from "./EventModal";
 import { SessionDetailsModal } from "./SessionDetailsModal";
 import { Id } from "../../../convex/_generated/dataModel";
+import { showToast } from "../../utils/toast";
 
 interface CalendarProps {
   userId: string | null;
@@ -41,6 +42,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
   // Use Convex to manage events
   const createEvent = useMutation(api.events.create);
   const updateEvent = useMutation(api.events.update);
+  const deleteEvent = useMutation(api.events.deleteEvent);
   const allEvents = useQuery(api.events.getAllEvents) || [];
 
   // Transform Convex events to the format FullCalendar expects
@@ -60,6 +62,17 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
 
   // Handle date click - open modal for new event creation
   const handleDateClick = (info: DateClickArg) => {
+    const clickedDate = new Date(info.dateStr);
+    const now = new Date();
+    
+    // Check if the clicked date is in the past
+    if (clickedDate < now) {
+      console.log("Calendar - Rejected date click: Past date detected", info.dateStr);
+      showToast.session.pastDateError();
+      return; // Early return without opening the modal
+    }
+    
+    // Only executed for future dates
     setSelectedEvent(null); // Clear any selected event
     setSelectedDate(info.dateStr);
     setIsModalOpen(true);
@@ -114,6 +127,21 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     }
   };
 
+  // Handle event deletion
+  const handleEventDelete = async (eventId: Id<"events">) => {
+    try {
+      console.log("Calendar - Deleting event:", eventId);
+      await deleteEvent({ id: eventId });
+      console.log("Calendar - Event deleted successfully");
+      showToast.session.deleted();
+      return Promise.resolve();
+    } catch (error: any) {
+      console.error("Calendar - Error deleting event:", error);
+      showToast.error(error.message || "Failed to delete session");
+      return Promise.reject(error);
+    }
+  };
+
   // Handle event creation/update from modal
   const handleEventSubmit = async ({
     title,
@@ -123,23 +151,48 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     title: string;
     start: string;
     end: string;
-  }) => {
-    if (selectedEvent?.id) {
-      // Update existing event
-      await updateEvent({
-        id: selectedEvent.id,
+  }): Promise<void> => {
+    try {
+      console.log("Calendar - Submitting event:", {
+        isEdit: !!selectedEvent?.id,
         title,
         start,
-        end,
+        end
       });
-    } else if (userId) {
-      // Create new event
-      await createEvent({
-        userId: currentUserId,
-        title,
-        start,
-        end,
-      });
+
+      if (selectedEvent?.id) {
+        // Update existing event
+        console.log("Calendar - Updating existing event:", selectedEvent.id);
+        await updateEvent({
+          id: selectedEvent.id,
+          title,
+          start,
+          end,
+        });
+        console.log("Calendar - Event updated successfully");
+        showToast.session.updated();
+      } else if (userId) {
+        // Create new event
+        console.log("Calendar - Creating new event for user:", currentUserId);
+        const eventId = await createEvent({
+          userId: currentUserId,
+          title,
+          start,
+          end,
+        });
+        console.log("Calendar - Event created successfully:", eventId);
+        showToast.session.created();
+      }
+    } catch (error: any) {
+      console.error("Calendar - Error submitting event:", error);
+      if (error.message.includes("past date")) {
+        showToast.session.pastDateError();
+      } else if (error.message.includes("overlapping")) {
+        showToast.session.overlapError();
+      } else {
+        showToast.error(error.message || "Failed to create/update session");
+      }
+      return Promise.reject(error);
     }
   };
 
@@ -198,8 +251,10 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
           setSelectedEvent(null);
         }}
         onSubmit={handleEventSubmit}
+        onDelete={selectedEvent?.creatorName === userDisplayName ? handleEventDelete : undefined}
         dateStr={selectedDate}
         event={selectedEvent}
+        userId={currentUserId}
       />
       <SessionDetailsModal
         isOpen={isDetailsModalOpen}

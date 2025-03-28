@@ -1,0 +1,52 @@
+// This test file is currently not set up for running
+// You'll need to install test dependencies before running
+// npm install --save-dev @testing-library/react @testing-library/jest-dom jest
+
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { EventModal } from './EventModal';
+import '@testing-library/jest-dom';
+
+jest.mock('../../convex', () => ({
+  api: {
+    events: {
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+  },
+}));
+
+// Tests are defined but disabled for now
+// Uncomment when testing infrastructure is set up
+/*
+describe('EventModal', () => {
+  const mockOnClose = jest.fn();
+  const mockOnSubmit = jest.fn().mockResolvedValue(undefined);
+  const mockOnDelete = jest.fn().mockResolvedValue(undefined);
+  const currentDate = new Date();
+  
+  // Helper to create a future date string
+  const getFutureDate = (daysToAdd = 1) => {
+    const date = new Date();
+    date.setDate(date.getDate() + daysToAdd);
+    return date.toISOString();
+  };
+
+  // Helper to create a past date string
+  const getPastDate = (daysToSubtract = 1) => {
+    const date = new Date();
+    date.setDate(date.getDate() - daysToSubtract);
+    return date.toISOString();
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('should show error message when trying to create an event with a past date', async () => {
+    // Tests go here
+  });
+
+  // Other tests go here
+});
+*/ 

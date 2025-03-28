@@ -1,0 +1,286 @@
+// This test file is skipped from the build process
+// Tests for the session overlap validation
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { create, update } from './events';
+
+// Mock the convex context
+const mockCtx = {
+  db: {
+    insert: vi.fn(),
+    query: vi.fn(),
+    get: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+  },
+};
+
+describe('events overlap validation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    // Set fixed date for testing
+    vi.setSystemTime(new Date('2023-01-01T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('create with overlap validation', () => {
+    it('should create a new event when there are no overlapping sessions', async () => {
+      // Arrange
+      const userId = 'user123';
+      const args = {
+        userId,
+        title: 'New Event',
+        start: '2023-01-02T13:00:00Z', // 1pm
+        end: '2023-01-02T14:00:00Z',   // 2pm
+      };
+
+      // Mock existing events with no overlaps
+      const existingEvents = [
+        {
+          _id: 'event1',
+          userId,
+          title: 'Morning Event',
+          start: '2023-01-02T09:00:00Z', // 9am
+          end: '2023-01-02T10:00:00Z',   // 10am
+        },
+        {
+          _id: 'event2',
+          userId,
+          title: 'Afternoon Event',
+          start: '2023-01-02T15:00:00Z', // 3pm
+          end: '2023-01-02T16:00:00Z',   // 4pm
+        },
+      ];
+
+      mockCtx.db.query.mockReturnValue({
+        withIndex: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            collect: vi.fn().mockResolvedValue(existingEvents),
+          }),
+        }),
+      });
+
+      mockCtx.db.insert.mockResolvedValue('new-event-id');
+
+      // Act & Assert
+      // This should not throw an error
+      await expect(create.handler(mockCtx as any, args as any))
+        .resolves
+        .toBe('new-event-id');
+    });
+
+    it('should reject event creation when there is an overlap (new event starts during existing)', async () => {
+      // Arrange
+      const userId = 'user123';
+      const args = {
+        userId,
+        title: 'Overlapping Event',
+        start: '2023-01-02T09:30:00Z', // 9:30am (overlaps with morning event)
+        end: '2023-01-02T10:30:00Z',   // 10:30am
+      };
+
+      // Mock existing events with an overlap
+      const existingEvents = [
+        {
+          _id: 'event1',
+          userId,
+          title: 'Morning Event',
+          start: '2023-01-02T09:00:00Z', // 9am
+          end: '2023-01-02T10:00:00Z',   // 10am
+        },
+      ];
+
+      mockCtx.db.query.mockReturnValue({
+        withIndex: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            collect: vi.fn().mockResolvedValue(existingEvents),
+          }),
+        }),
+      });
+
+      // Act & Assert
+      await expect(create.handler(mockCtx as any, args as any))
+        .rejects
+        .toThrow('Cannot create overlapping sessions');
+      
+      expect(mockCtx.db.insert).not.toHaveBeenCalled();
+    });
+
+    it('should reject event creation when there is an overlap (new event ends during existing)', async () => {
+      // Arrange
+      const userId = 'user123';
+      const args = {
+        userId,
+        title: 'Overlapping Event',
+        start: '2023-01-02T08:30:00Z', // 8:30am
+        end: '2023-01-02T09:30:00Z',   // 9:30am (overlaps with morning event)
+      };
+
+      // Mock existing events with an overlap
+      const existingEvents = [
+        {
+          _id: 'event1',
+          userId,
+          title: 'Morning Event',
+          start: '2023-01-02T09:00:00Z', // 9am
+          end: '2023-01-02T10:00:00Z',   // 10am
+        },
+      ];
+
+      mockCtx.db.query.mockReturnValue({
+        withIndex: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            collect: vi.fn().mockResolvedValue(existingEvents),
+          }),
+        }),
+      });
+
+      // Act & Assert
+      await expect(create.handler(mockCtx as any, args as any))
+        .rejects
+        .toThrow('Cannot create overlapping sessions');
+    });
+
+    it('should reject event creation when there is an overlap (new event encompasses existing)', async () => {
+      // Arrange
+      const userId = 'user123';
+      const args = {
+        userId,
+        title: 'Long Overlapping Event',
+        start: '2023-01-02T08:00:00Z', // 8am
+        end: '2023-01-02T11:00:00Z',   // 11am (completely covers morning event)
+      };
+
+      // Mock existing events with an overlap
+      const existingEvents = [
+        {
+          _id: 'event1',
+          userId,
+          title: 'Morning Event',
+          start: '2023-01-02T09:00:00Z', // 9am
+          end: '2023-01-02T10:00:00Z',   // 10am
+        },
+      ];
+
+      mockCtx.db.query.mockReturnValue({
+        withIndex: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            collect: vi.fn().mockResolvedValue(existingEvents),
+          }),
+        }),
+      });
+
+      // Act & Assert
+      await expect(create.handler(mockCtx as any, args as any))
+        .rejects
+        .toThrow('Cannot create overlapping sessions');
+    });
+  });
+
+  describe('update with overlap validation', () => {
+    it('should allow updating an event when there are no overlapping sessions', async () => {
+      // Arrange
+      const eventId = 'event1' as any;
+      const userId = 'user123';
+      const args = {
+        id: eventId,
+        title: 'Updated Event',
+        start: '2023-01-02T13:00:00Z', // 1pm
+        end: '2023-01-02T14:00:00Z',   // 2pm
+      };
+
+      const currentEvent = {
+        _id: eventId,
+        userId,
+        title: 'Original Event',
+        start: '2023-01-02T11:00:00Z', // 11am
+        end: '2023-01-02T12:00:00Z',   // 12pm
+      };
+
+      // Mock existing events with no overlaps
+      const existingEvents = [
+        currentEvent,
+        {
+          _id: 'event2',
+          userId,
+          title: 'Afternoon Event',
+          start: '2023-01-02T15:00:00Z', // 3pm
+          end: '2023-01-02T16:00:00Z',   // 4pm
+        },
+      ];
+
+      mockCtx.db.get.mockResolvedValue(currentEvent);
+      mockCtx.db.query.mockReturnValue({
+        withIndex: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            collect: vi.fn().mockResolvedValue(existingEvents),
+          }),
+        }),
+      });
+
+      // Act & Assert
+      // This should not throw an error
+      await expect(update.handler(mockCtx as any, args as any))
+        .resolves
+        .toBe(eventId);
+        
+      expect(mockCtx.db.patch).toHaveBeenCalledWith(eventId, {
+        title: args.title,
+        start: args.start,
+        end: args.end,
+      });
+    });
+
+    it('should reject event update when there is an overlap with another event', async () => {
+      // Arrange
+      const eventId = 'event1' as any;
+      const userId = 'user123';
+      const args = {
+        id: eventId,
+        title: 'Updated Event',
+        start: '2023-01-02T15:30:00Z', // 3:30pm (overlaps with afternoon event)
+        end: '2023-01-02T16:30:00Z',   // 4:30pm
+      };
+
+      const currentEvent = {
+        _id: eventId,
+        userId,
+        title: 'Original Event',
+        start: '2023-01-02T11:00:00Z', // 11am
+        end: '2023-01-02T12:00:00Z',   // 12pm
+      };
+
+      // Mock existing events with an overlap
+      const existingEvents = [
+        currentEvent,
+        {
+          _id: 'event2',
+          userId,
+          title: 'Afternoon Event',
+          start: '2023-01-02T15:00:00Z', // 3pm
+          end: '2023-01-02T16:00:00Z',   // 4pm
+        },
+      ];
+
+      mockCtx.db.get.mockResolvedValue(currentEvent);
+      mockCtx.db.query.mockReturnValue({
+        withIndex: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            collect: vi.fn().mockResolvedValue(existingEvents),
+          }),
+        }),
+      });
+
+      // Act & Assert
+      await expect(update.handler(mockCtx as any, args as any))
+        .rejects
+        .toThrow('Cannot create overlapping sessions');
+        
+      expect(mockCtx.db.patch).not.toHaveBeenCalled();
+    });
+  });
+}); 

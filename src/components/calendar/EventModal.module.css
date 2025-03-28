@@ -62,6 +62,16 @@
   margin-top: 0.5rem;
 }
 
+.warningMessage {
+  color: #f59e0b;
+  background-color: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
 .dateDisplay {
   padding: 0.75rem;
   background-color: #f9fafb;
@@ -71,9 +81,34 @@
 
 .buttonGroup {
   display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 2rem;
+}
+
+.rightButtons {
+  display: flex;
+  gap: 1rem;
+}
+
+.deleteButton {
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  background-color: #ef4444;
+  border: none;
+  color: white;
+}
+
+.deleteButton:hover {
+  background-color: #dc2626;
+}
+
+.deleteButton:disabled {
+  background-color: #fca5a5;
+  cursor: not-allowed;
 }
 
 .cancelButton,
@@ -138,5 +173,11 @@
 
   .cancelButton:hover {
     background-color: #4b5563;
+  }
+
+  .warningMessage {
+    color: #fbbf24;
+    background-color: rgba(251, 191, 36, 0.1);
+    border-color: #d97706;
   }
 } 

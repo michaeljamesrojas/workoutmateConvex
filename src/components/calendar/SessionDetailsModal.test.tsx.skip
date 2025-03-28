@@ -1,0 +1,147 @@
+// This test file is currently not set up for running
+// You'll need to install test dependencies before running
+// npm install --save-dev @testing-library/react @testing-library/jest-dom jest
+
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { SessionDetailsModal } from './SessionDetailsModal';
+import '@testing-library/jest-dom';
+
+// Mock dependencies and hooks
+jest.mock('react-router-dom', () => ({
+  useNavigate: () => jest.fn(),
+}));
+
+describe('SessionDetailsModal Early Join Tests', () => {
+  const mockOnClose = jest.fn();
+  const mockOnEdit = jest.fn();
+  
+  // Helper to create future dates
+  const createFutureDate = (minutesFromNow) => {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() + minutesFromNow);
+    return date.toISOString();
+  };
+  
+  // Helper to create past dates
+  const createPastDate = (minutesAgo) => {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() - minutesAgo);
+    return date.toISOString();
+  };
+  
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+  });
+  
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+  
+  test('should disable join button when session starts in more than 10 minutes', () => {
+    // Arrange - Create a session starting in 20 minutes
+    const event = {
+      id: 'session123',
+      title: 'Future Session',
+      start: createFutureDate(20),
+      end: createFutureDate(80),
+      creatorName: 'TestUser'
+    };
+    
+    // Act
+    render(
+      <SessionDetailsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        event={event}
+        isOwnEvent={false}
+      />
+    );
+    
+    // Assert
+    expect(screen.getByText(/session not started yet/i)).toBeInTheDocument();
+    const enterButton = screen.getByRole('button', { name: /session not started yet/i });
+    expect(enterButton).toBeDisabled();
+  });
+  
+  test('should enable early join button when session starts within 10 minutes', () => {
+    // Arrange - Create a session starting in 5 minutes
+    const event = {
+      id: 'session123',
+      title: 'Upcoming Session',
+      start: createFutureDate(5),
+      end: createFutureDate(65),
+      creatorName: 'TestUser'
+    };
+    
+    // Act
+    render(
+      <SessionDetailsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        event={event}
+        isOwnEvent={false}
+      />
+    );
+    
+    // Assert
+    expect(screen.getByText(/starting soon/i)).toBeInTheDocument();
+    const earlyButton = screen.getByRole('button', { name: /enter session early/i });
+    expect(earlyButton).not.toBeDisabled();
+    expect(earlyButton).toHaveClass('earlyButton');
+  });
+  
+  test('should show active session status when session is in progress', () => {
+    // Arrange - Create an active session
+    const event = {
+      id: 'session123',
+      title: 'Active Session',
+      start: createPastDate(10),
+      end: createFutureDate(50),
+      creatorName: 'TestUser'
+    };
+    
+    // Act
+    render(
+      <SessionDetailsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        event={event}
+        isOwnEvent={false}
+      />
+    );
+    
+    // Assert
+    expect(screen.getByText(/active now/i)).toBeInTheDocument();
+    const enterButton = screen.getByRole('button', { name: /enter session/i });
+    expect(enterButton).not.toBeDisabled();
+    expect(enterButton).toHaveClass('enterButton');
+  });
+  
+  test('should disable join button when session has ended', () => {
+    // Arrange - Create a past session
+    const event = {
+      id: 'session123',
+      title: 'Past Session',
+      start: createPastDate(120),
+      end: createPastDate(60),
+      creatorName: 'TestUser'
+    };
+    
+    // Act
+    render(
+      <SessionDetailsModal
+        isOpen={true}
+        onClose={mockOnClose}
+        event={event}
+        isOwnEvent={false}
+      />
+    );
+    
+    // Assert
+    expect(screen.getByText(/session ended/i)).toBeInTheDocument();
+    const enterButton = screen.getByRole('button', { name: /session has ended/i });
+    expect(enterButton).toBeDisabled();
+  });
+}); 

@@ -12,9 +12,9 @@
 }
 
 .modal {
-  background-color: var(--bubbles-background);
+  background: white;
+  padding: 2rem;
   border-radius: 8px;
-  padding: 1.5rem;
   width: 90%;
   max-width: 500px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -38,73 +38,143 @@
   font-size: 1.5rem;
   cursor: pointer;
   color: var(--secondary-text);
-  padding: 0.5rem;
-}
-
-.closeButton:hover {
-  color: var(--primary-text);
 }
 
 .modalContent {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
 .detailRow {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.detailRow:last-child {
-  border-bottom: none;
+  margin-bottom: 0.75rem;
 }
 
 .detailRow strong {
+  width: 100px;
   color: var(--secondary-text);
-}
-
-.detailRow span {
-  color: var(--primary-text);
 }
 
 .modalFooter {
   display: flex;
   justify-content: space-between;
-  padding: 1rem;
-  border-top: 1px solid var(--border-color);
+  gap: 1rem;
 }
 
-.editButton {
-  padding: 0.5rem 1rem;
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
+.enterButton,
+.editButton,
+.disabledButton,
+.earlyButton {
+  padding: 0.75rem 1.5rem;
   border-radius: 4px;
-  cursor: pointer;
   font-weight: 500;
+  cursor: pointer;
   transition: background-color 0.2s;
-}
-
-.editButton:hover {
-  background-color: var(--primary-dark);
+  flex: 1;
 }
 
 .enterButton {
-  padding: 0.5rem 1rem;
-  background-color: var(--accent-color, #4caf50);
-  color: white;
+  background-color: var(--primary);
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-  margin-right: 0.5rem;
+  color: white;
 }
 
 .enterButton:hover {
-  background-color: var(--accent-dark, #388e3c);
+  background-color: #e04d0f;
+}
+
+.editButton {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  color: var(--secondary-text);
+}
+
+.editButton:hover {
+  background-color: #f9fafb;
+}
+
+.disabledButton {
+  background-color: #d1d5db;
+  border: none;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.earlyButton {
+  background-color: #3b82f6; /* Blue */
+  border: none;
+  color: white;
+}
+
+.earlyButton:hover {
+  background-color: #2563eb; /* Darker blue */
+}
+
+/* Session status styles */
+.upcoming {
+  color: #f59e0b; /* Amber */
+  font-weight: 500;
+}
+
+.early {
+  color: #3b82f6; /* Blue */
+  font-weight: 500;
+}
+
+.active {
+  color: #10b981; /* Green */
+  font-weight: 500;
+}
+
+.ended {
+  color: #6b7280; /* Gray */
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .modal {
+    background-color: #1f2937;
+  }
+
+  .closeButton {
+    color: #e5e7eb;
+  }
+
+  .editButton {
+    background-color: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+  }
+
+  .editButton:hover {
+    background-color: #4b5563;
+  }
+
+  .disabledButton {
+    background-color: #4b5563;
+    color: #9ca3af;
+  }
+
+  .upcoming {
+    color: #fbbf24; /* Darker amber for dark mode */
+  }
+
+  .active {
+    color: #34d399; /* Brighter green for dark mode */
+  }
+
+  .ended {
+    color: #9ca3af; /* Lighter gray for dark mode */
+  }
+
+  .earlyButton {
+    background-color: #2563eb;
+  }
+
+  .earlyButton:hover {
+    background-color: #1d4ed8;
+  }
+
+  .early {
+    color: #60a5fa; /* Lighter blue for dark mode */
+  }
 } 
