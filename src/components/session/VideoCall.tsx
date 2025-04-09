@@ -31,10 +31,10 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({}); // Refs for remote video elements
   const pendingCandidatesRef = useRef<Record<string, RTCIceCandidateInit[]>>({}); // Ref to store pending candidates
-  const peerConnections = useRef<Record<string, PeerConnection>>({}); // Use useRef for peer connections
+  const peerConnections = useRef<Record<string, RTCPeerConnection>>({}); // Use useRef for peer connections
   const makingOffer = useRef<Record<string, boolean>>({}); // Track makingOffer state
   const ignoreOffer = useRef<Record<string, boolean>>({}); // Track ignoreOffer state
-  const queuedCandidates = useRef<Record<string, RTCIceCandidateInit[]>>({}); // Track queued candidates
+  const queuedIceCandidatesRef = useRef<Record<string, RTCIceCandidate[]>>({}); // Queue for early candidates
 
   // Convex Auth state
   const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
@@ -65,7 +65,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
     // Cleanup
     return () => {
       localStream?.getTracks().forEach((track) => track.stop());
-      Object.values(peerConnections.current).forEach(pc => pc.connection.close());
+      Object.values(peerConnections.current).forEach(pc => pc.close());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
@@ -143,10 +143,27 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
     // Handle incoming remote tracks
     pc.ontrack = (event) => {
       console.log(`Track received from ${targetUserId}`, event.streams[0]);
-      setRemoteStreams(prev => ({
-        ...prev,
-        [targetUserId]: event.streams[0]
-      }));
+      const remoteStream = event.streams[0];
+      if (remoteStream) {
+        setRemoteStreams(prev => {
+          const existingStream = prev[targetUserId];
+          if (existingStream) {
+            console.log(`Updating existing stream for ${targetUserId}`);
+            event.track.onended = () => {
+              console.log(`Remote track ended for ${targetUserId}`);
+              // Optionally handle track ending, e.g., remove stream or track
+            };
+            return { ...prev, [targetUserId]: remoteStream }; 
+          } else {
+            console.log(`Creating new stream entry for ${targetUserId}`);
+            event.track.onended = () => {
+              console.log(`Remote track ended for ${targetUserId}`);
+              // Optionally handle track ending
+            };
+            return { ...prev, [targetUserId]: remoteStream };
+          }
+        });
+      }
     };
 
     // Handle ICE candidates
@@ -172,10 +189,41 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         }
     };
 
-    peerConnections.current[targetUserId] = { connection: pc };
+    peerConnections.current[targetUserId] = pc;
 
     return pc;
   }, [localStream, sendSignal, sessionId]); // Dependencies
+
+  // Helper function to process queued ICE candidates for a specific peer
+  const processQueuedIceCandidates = useCallback(async (peerId: string) => {
+    const pc = peerConnections.current[peerId];
+    const queue = queuedIceCandidatesRef.current[peerId];
+
+    // Ensure PC exists, remote description is set, and there's a queue with candidates
+    if (pc && pc.remoteDescription && queue && queue.length > 0) {
+      console.log(`Processing ${queue.length} queued ICE candidates for ${peerId}. Remote desc type: ${pc.remoteDescription.type}, Signaling state: ${pc.signalingState}`);
+      while (queue.length > 0) {
+        const candidate = queue.shift(); // Get the oldest candidate
+        if (candidate) {
+          try {
+            await pc.addIceCandidate(candidate);
+            console.log(`Successfully added queued ICE candidate for ${peerId}:`, candidate.candidate.substring(0, 30) + "..."); // Log partial candidate
+          } catch (error) {
+            // Common error: Trying to add candidate before remote description is fully stable or in wrong state.
+            // We might retry or log, depending on the specific error.
+            console.error(`Error adding queued ICE candidate for ${peerId} (State: ${pc.signalingState}):`, error);
+            // Optional: Put candidate back in front of queue if it's a state issue? Be careful with loops.
+            // queue.unshift(candidate);
+          }
+        }
+      }
+    } else if (queue && queue.length > 0) {
+      // Log why we are *not* processing if the queue isn't empty
+      console.log(`Not processing queued ICE candidates for ${peerId}. Conditions not met: PC exists=${!!pc}, Remote desc set=${!!pc?.remoteDescription}, Queue size=${queue?.length}. State: ${pc?.signalingState}`);
+    }
+    // Clear the queue if it exists, regardless of processing, to prevent reprocessing old candidates if conditions change later
+    // delete queuedIceCandidatesRef.current[peerId]; // Reconsider if clearing is always right here.
+  }, []); // No dependencies needed as it uses refs
 
   // --- Initiate Connections to New Peers ---
   useEffect(() => {
@@ -242,7 +290,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
              console.log(`Skipping initial offer for ${peerId}: state=${pc.signalingState}, making=${makingOffer.current[peerId]}, ignore=${ignoreOffer.current[peerId]}`);
         }
       } else {
-         console.log(`Connection status for existing peer ${peerId}: ${peerConnections.current[peerId]?.connection?.connectionState}`);
+         console.log(`Connection status for existing peer ${peerId}: ${peerConnections.current[peerId]?.connectionState}`);
          // Optional: Add logic here to re-initiate if connection failed previously
       }
     });
@@ -253,7 +301,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
     currentPeerIds.forEach(peerId => {
       if (!otherParticipantIds.includes(peerId)) {
         console.log(`Cleaning up connection for left peer: ${peerId}`);
-        peerConnections.current[peerId]?.connection?.close();
+        peerConnections.current[peerId]?.close();
         delete peerConnections.current[peerId]; // Use delete instead of assigning undefined
       }
     });
@@ -279,7 +327,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
 
       // Ensure peer connection exists
       const peerData = peerConnections.current[senderId];
-      let pc: RTCPeerConnection | null = peerData ? peerData.connection : null;
+      let pc: RTCPeerConnection | null = peerData ? peerData : null;
 
       // If connection doesn't exist for an incoming signal (e.g., offer), create it.
       if (!pc && type === 'offer') {
@@ -287,7 +335,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         const createdPc = createPeerConnection(senderId); // Returns RTCPeerConnection | null
         if (createdPc) { // Check ensures createdPc is not null here
             // Update state *inside* the check where createdPc is known to be non-null
-            peerConnections.current[senderId] = { connection: createdPc, remoteStream: undefined }; // Explicitly assign non-null connection
+            peerConnections.current[senderId] = createdPc; // Explicitly assign non-null connection
             pc = createdPc; // Assign the non-null connection to the loop variable 'pc'
         } else {
              console.error(`Failed to create peer connection for signal from ${senderId}`);
@@ -328,7 +376,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
 
             // Condition 3: Check signaling state before setting remote description
             if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer') {
-                console.warn(`Received offer from ${senderId} but signaling state is ${pc.signalingState}. Cannot process.`);
+                console.warn(`Received offer from ${senderId}, but signaling state is ${pc.signalingState}. Cannot process.`);
                  // If state is have-remote-offer, it's likely a duplicate, can safely ignore.
                 return;
             }
@@ -382,18 +430,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
                 console.log(`Remote description (answer) set for ${senderId}`);
 
                 // Process any queued candidates for this peer
-                if (queuedCandidates.current[senderId]) {
-                  console.log(`Processing ${queuedCandidates.current[senderId].length} queued candidates for ${senderId}`);
-                  queuedCandidates.current[senderId].forEach(async (candidateInit) => {
-                    try {
-                      await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
-                      console.log(`Added queued ICE candidate from ${senderId}`);
-                    } catch (addError) {
-                      console.error(`Error adding queued ICE candidate for ${senderId}:`, addError);
-                    }
-                  });
-                  delete queuedCandidates.current[senderId]; // Clear queue
-                }
+                await processQueuedIceCandidates(senderId);
             } else {
                 console.warn(`Received answer from ${senderId}, but signaling state is ${pc.signalingState}. Ignoring.`);
             }
@@ -416,10 +453,10 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
             } else {
               console.warn(`Received ICE candidate from ${senderId}, but remote description not set yet. Queueing.`);
               // Queue the candidate if remote description isn't set
-              if (!queuedCandidates.current[senderId]) {
-                queuedCandidates.current[senderId] = [];
+              if (!queuedIceCandidatesRef.current[senderId]) {
+                queuedIceCandidatesRef.current[senderId] = [];
               }
-              queuedCandidates.current[senderId].push(parsedData); // Store the raw parsed data
+              queuedIceCandidatesRef.current[senderId].push(iceCandidate); // Store the candidate directly
             }
 
             deleteSignal({ signalId: signal._id });
@@ -435,17 +472,22 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
 
     // Note: Consider adding logic to clear processed signals from the Convex query if they persist.
 
-  }, [signals, isAuthLoading, isAuthenticated, createPeerConnection, sendSignal, sessionId, userId, deleteSignal]); // Added userId dependency
+  }, [signals, isAuthLoading, isAuthenticated, createPeerConnection, sendSignal, sessionId, userId, deleteSignal, processQueuedIceCandidates]); // Added userId dependency
 
   // --- Assign Remote Streams to Video Elements ---
   useEffect(() => {
-    Object.entries(remoteStreams).forEach(([peerId, stream]) => {
-      if (stream && remoteVideoRefs.current[peerId]) {
+    Object.keys(remoteStreams).forEach((peerId) => {
+      const stream = remoteStreams[peerId];
+      const videoElement = remoteVideoRefs.current[peerId];
+      if (videoElement && stream && videoElement.srcObject !== stream) {
         console.log(`Assigning remote stream from ${peerId} to video element`);
-        remoteVideoRefs.current[peerId]!.srcObject = stream;
+        videoElement.srcObject = stream;
+      } else if (videoElement && !stream) {
+        console.log(`Clearing stream for ${peerId}`);
+        videoElement.srcObject = null;
       }
     });
-  }, [remoteStreams]); // Re-run when remoteStreams change
+  }, [remoteStreams]); // Re-run when remoteStreams changes
 
 
   // --- Render Component ---
@@ -476,7 +518,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
                     autoPlay
                     playsInline
                 />
-                <span>Peer: {peerId.substring(0, 4)} {peerConnections.current[peerId].connection.connectionState}</span>
+                <span>Peer: {peerId.substring(0, 4)} {peerConnections.current[peerId].connectionState}</span>
                  {/* TODO: Get actual username for peerId */}
             </div>
            )

@@ -79,4 +79,42 @@
 
 .controlButton.active:hover {
   background-color: #d32f2f;
-} 
+}
+
+/* Styles for Video Grid Layout */
+.videoGrid {
+  display: grid;
+  /* Example: create columns that take equal space, adjust as needed */
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px; /* Adds space between videos */
+  padding: 10px;
+  width: 100%; /* Ensure it takes available width */
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.videoWrapper {
+  position: relative; /* Good practice for potential absolute positioning inside */
+  width: 100%; /* Make wrapper take column width */
+  aspect-ratio: 16 / 9; /* Maintain video aspect ratio, adjust as needed */
+  background-color: #222; /* Placeholder background */
+  border-radius: 8px; /* Optional styling */
+  overflow: hidden; /* Hide parts of video if it overflows */
+}
+
+.videoElement {
+  display: block; /* Removes extra space below video */
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Cover the wrapper area, might crop video */
+}
+
+.usernameLabel {
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 2px 5px;
+    font-size: 0.8em;
+    border-radius: 3px;
+}
