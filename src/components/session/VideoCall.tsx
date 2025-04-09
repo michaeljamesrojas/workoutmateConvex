@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id, Doc } from "../../../convex/_generated/dataModel";
 import styles from "./VideoCall.module.css";
@@ -31,10 +31,13 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
 
+  // Convex Auth state
+  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
+
   // Convex mutations and queries
   const sendSignal = useMutation(api.video.sendSignal);
   const deleteSignal = useMutation(api.video.deleteSignal);
-  const signals = useQuery(api.video.getSignals, { sessionId });
+  const signals = useQuery(api.video.getSignals, isAuthenticated ? { sessionId } : "skip");
 
   const otherParticipantIds = participantIds.filter(id => id !== userId);
 
@@ -157,105 +160,60 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
 
   // --- Process Incoming Signals ---
   useEffect(() => {
-    if (!signals || signals.length === 0) return;
+    if (!signals || signals.length === 0 || !isAuthenticated || isAuthLoading) return;
 
     console.log("Received signals:", signals);
 
     signals.forEach(async (signal: Doc<"videoSignals">) => {
-      const { userId: senderUserId, type, signal: signalDataStr, _id: signalId } = signal;
-      let signalData: any;
-      try {
-        signalData = JSON.parse(signalDataStr);
-      } catch (error) {
-        console.error("Failed to parse signal data:", signalDataStr, error);
-        // Check if deleteSignal is available before calling
-        if (deleteSignal) {
-             await deleteSignal({ signalId }); // Delete invalid signal
-        } else {
-            console.warn("deleteSignal mutation not ready.");
-        }
-        return;
-      }
+      console.log('Processing signal:', signal);
+      const pc = peerConnections[signal.userId];
 
-      let pc = peerConnections[senderUserId]?.connection;
-
-      try {
-        if (type === "offer") {
-          console.log(`Processing offer from ${senderUserId}`);
-          // Ensure connection exists or create it
-          if (!pc) {
-            pc = createPeerConnection(senderUserId);
+      // Check if peer connection exists first
+      if (pc) {
+        // Process signal only if pc exists
+        try {
+          if (signal.type === 'offer') {
+            console.log('Received offer from:', signal.userId);
+            // Use pc directly (no '!')
+            await pc.connection.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: signal.signal }));
+            const answer = await pc.connection.createAnswer();
+            await pc.connection.setLocalDescription(answer);
+            // Send answer back to the offerer
+            sendSignal({ 
+              sessionId, 
+              // userId, // Sender userId is inferred by the backend
+              targetUserId: signal.userId, // Target is the user who sent the offer
+              type: 'answer', 
+              signal: answer.sdp! // Keep '!' for sdp as it's inherently possibly null
+            });
+            console.log('Sent answer to:', signal.userId);
+          } else if (signal.type === 'answer') {
+            console.log('Received answer from:', signal.userId);
+            // Use pc directly (no '!')
+            await pc.connection.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: signal.signal }));
+            console.log('Set remote description (answer) for:', signal.userId);
+          } else if (signal.type === 'candidate') {
+            console.log('Received ICE candidate from:', signal.userId);
+            const candidate = new RTCIceCandidate(JSON.parse(signal.signal));
+            // Use pc directly (no '!')
+            await pc.connection.addIceCandidate(candidate); 
+            console.log('Added ICE candidate for:', signal.userId);
           }
-          if (!pc) {
-              console.error("Failed to create peer connection for offer");
-              // Check if deleteSignal is available before calling
-              if (deleteSignal) {
-                  await deleteSignal({ signalId });
-              } else {
-                  console.warn("deleteSignal mutation not ready.");
-              }
-              return;
-          }
-
-          await pc.setRemoteDescription(new RTCSessionDescription(signalData));
-          console.log(`Creating answer for ${senderUserId}`);
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-
-          console.log(`Sending answer to ${senderUserId}`);
-          sendSignal({
-            sessionId,
-            targetUserId: senderUserId,
-            type: "answer",
-            signal: JSON.stringify(answer),
-          });
-
-        } else if (type === "answer") {
-          console.log(`Processing answer from ${senderUserId}`);
-          if (!pc) {
-            console.error(`No peer connection found for answer from ${senderUserId}`);
-          } else {
-            await pc.setRemoteDescription(new RTCSessionDescription(signalData));
-            console.log(`Remote description set for ${senderUserId}`);
-          }
-
-        } else if (type === "candidate") {
-          console.log(`Processing ICE candidate from ${senderUserId}`);
-           if (!pc) {
-            console.error(`No peer connection found for candidate from ${senderUserId}`);
-          } else {
-            try {
-                await pc.addIceCandidate(new RTCIceCandidate(signalData));
-                console.log(`Added ICE candidate from ${senderUserId}`);
-            } catch (e) {
-                console.error("Error adding received ICE candidate", e);
-            }
-          }
+          // Delete signal after successful processing within the try block
+          await deleteSignal({ signalId: signal._id });
+        } catch (error) {
+          console.error("Error processing signal:", signal, error);
+          // Optionally delete signal even on error?
+          // await deleteSignal({ signalId: signal._id }); 
         }
-        // Delete signal after processing
-        // Check if deleteSignal is available before calling
-        if (deleteSignal) {
-             await deleteSignal({ signalId });
-        } else {
-            console.warn("deleteSignal mutation not ready.");
-        }
-
-      } catch (error) {
-        console.error(`Error processing signal type ${type} from ${senderUserId}:`, error);
-        // Consider deleting the signal even if processing failed to avoid loops
-         // Check if deleteSignal is available before calling
-        if (deleteSignal) {
-            try {
-                 await deleteSignal({ signalId });
-            } catch (deleteError) {
-                 console.error(`Failed to delete signal ${signalId} after processing error:`, deleteError);
-            }
-        } else {
-             console.warn("deleteSignal mutation not ready during error handling.");
-        }
+      } else {
+        // Handle case where pc is null/undefined
+        console.warn(`Peer connection for ${signal.userId} not found while processing signal type ${signal.type}. Signal might be stale or connection failed.`);
+        // Optionally delete the signal if it's likely stale and pc doesn't exist
+        // await deleteSignal({ signalId: signal._id }); 
       }
     });
-  }, [signals, peerConnections, createPeerConnection, sendSignal, deleteSignal, sessionId]);
+  }, [signals, userId, sendSignal, deleteSignal, createPeerConnection, isAuthenticated, isAuthLoading, sessionId]); 
 
 
  // --- Assign Remote Streams to Video Elements ---

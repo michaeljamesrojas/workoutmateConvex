@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../../convex";
 import { Header } from "../layout";
 import { SessionChat } from "../messaging";
@@ -33,6 +33,9 @@ export const Session = ({ userId, username }: SessionProps) => {
   });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [hasShownJoinToast, setHasShownJoinToast] = useState(false);
+
+  // Convex Auth state
+  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
 
   // Mutation for joining the session
   const joinSessionMutation = useMutation(api.events.joinSession);
@@ -123,10 +126,15 @@ export const Session = ({ userId, username }: SessionProps) => {
     }
   }, [session, currentTime, hasShownJoinToast]);
 
-  // Effect to join the session when allowed
+  // Effect to join the session when allowed and authenticated
   useEffect(() => {
-    if (sessionStatus.canJoin && sessionId) {
-      console.log("Attempting to join session:", sessionId);
+    // Only attempt to join if:
+    // 1. Session status allows joining
+    // 2. We have a sessionId
+    // 3. Convex auth is not loading
+    // 4. Convex auth confirms user is authenticated
+    if (sessionStatus.canJoin && sessionId && !isAuthLoading && isAuthenticated) {
+      console.log("Attempting to join session (auth confirmed):", sessionId);
       joinSessionMutation({ eventId: sessionId as any }) // Cast to any if Id type causes issues
         .then(() => {
           console.log("Successfully called joinSession mutation");
@@ -136,7 +144,7 @@ export const Session = ({ userId, username }: SessionProps) => {
           showToast.error("Failed to mark you as joined in the session.");
         });
     }
-  }, [sessionStatus.canJoin, sessionId, joinSessionMutation]);
+  }, [sessionStatus.canJoin, sessionId, joinSessionMutation, isAuthLoading, isAuthenticated]);
 
   if (!userId || !username) {
     return (
