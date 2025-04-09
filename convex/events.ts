@@ -200,11 +200,36 @@ export const update = mutation({
   },
 });
 
+// Mutation to join a session (add user to participant list)
+export const joinSession = mutation({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("User must be authenticated to join a session.");
+    }
+    const userId = identity.subject; // Use the subject as the stable user ID
+
+    const event = await ctx.db.get(args.eventId);
+    if (!event) {
+      throw new Error("Event not found.");
+    }
+
+    // Ensure participantIds array exists and add user if not already present
+    const currentParticipants = event.participantIds || [];
+    if (!currentParticipants.includes(userId)) {
+      const updatedParticipants = [...currentParticipants, userId];
+      await ctx.db.patch(args.eventId, { participantIds: updatedParticipants });
+      console.log(`User ${userId} joined event ${args.eventId}`);
+    } else {
+      console.log(`User ${userId} is already in event ${args.eventId}`);
+    }
+  },
+});
+
 // Get a single event by ID
 export const getEventById = query({
-  args: {
-    id: v.string(),
-  },
+  args: { id: v.string() }, // Changed to string, will validate if it's an ID format
   handler: async (ctx, args) => {
     if (!args.id) {
       console.log("getEventById - No ID provided");
@@ -218,6 +243,7 @@ export const getEventById = query({
 
       // Create a map of user IDs to usernames
       allUsers.forEach((user) => {
+        // Try adding both _id and clerkId to the map
         userMap.set(user._id, user.username);
         if (user.clerkId) {
           userMap.set(user.clerkId, user.username);

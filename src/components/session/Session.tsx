@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex";
 import { Header } from "../layout";
 import { SessionChat } from "../messaging";
@@ -34,6 +34,9 @@ export const Session = ({ userId, username }: SessionProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [hasShownJoinToast, setHasShownJoinToast] = useState(false);
 
+  // Mutation for joining the session
+  const joinSessionMutation = useMutation(api.events.joinSession);
+
   // Get session details
   const session = useQuery(api.events.getEventById, { id: sessionId || "" });
 
@@ -48,10 +51,11 @@ export const Session = ({ userId, username }: SessionProps) => {
 
   // Validate session timing
   useEffect(() => {
-    if (!session) return;
+    // Ensure session is loaded and is actually an event document
+    if (!session || !("title" in session) || !("start" in session)) return;
 
     const startTime = new Date(session.start);
-    const endTime = new Date(session.end);
+    const endTime = new Date(session.end || session.start); // Use start if end is missing
     const now = currentTime;
 
     // Calculate time values
@@ -119,6 +123,21 @@ export const Session = ({ userId, username }: SessionProps) => {
     }
   }, [session, currentTime, hasShownJoinToast]);
 
+  // Effect to join the session when allowed
+  useEffect(() => {
+    if (sessionStatus.canJoin && sessionId) {
+      console.log("Attempting to join session:", sessionId);
+      joinSessionMutation({ eventId: sessionId as any }) // Cast to any if Id type causes issues
+        .then(() => {
+          console.log("Successfully called joinSession mutation");
+        })
+        .catch((error) => {
+          console.error("Error calling joinSession mutation:", error);
+          showToast.error("Failed to mark you as joined in the session.");
+        });
+    }
+  }, [sessionStatus.canJoin, sessionId, joinSessionMutation]);
+
   if (!userId || !username) {
     return (
       <div className={styles.sessionContainer}>
@@ -138,12 +157,15 @@ export const Session = ({ userId, username }: SessionProps) => {
     );
   }
 
-  if (!session) {
+  if (!session || !("title" in session) || !("start" in session)) {
+    // Handle cases where session is loading or is not a valid event type
     return (
       <div className={styles.sessionContainer}>
         <Header username={username} />
         <div className={styles.errorContainer}>
-          <div className={styles.errorMessage}>Loading session information...</div>
+          <div className={styles.errorMessage}>
+            {session === null ? "Session not found or invalid." : "Loading session information..."}
+          </div>
         </div>
       </div>
     );
@@ -158,7 +180,8 @@ export const Session = ({ userId, username }: SessionProps) => {
           <button className={styles.backButton} onClick={() => navigate(-1)}>
             ← Back
           </button>
-          <h1>{session?.title || "Session"}</h1>
+          {/* Access title only after confirming it's an event */}
+          <h1>{session.title}</h1>
         </div>
         <div className={styles.errorContainer}>
           <div className={styles.errorMessage}>
@@ -183,6 +206,10 @@ export const Session = ({ userId, username }: SessionProps) => {
   // Early join or active session - show a banner for early join
   const isEarlyJoin = sessionStatus.status === 'early';
 
+  // Extract participant IDs, default to empty array
+  // Ensure session is an event before accessing participantIds
+  const participantIds = (session && "participantIds" in session && session.participantIds) ? session.participantIds : [];
+
   return (
     <div className={styles.sessionContainer}>
       <Header username={username} />
@@ -190,7 +217,8 @@ export const Session = ({ userId, username }: SessionProps) => {
         <button className={styles.backButton} onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <h1>{session?.title || "Session"}</h1>
+        {/* Access title only after confirming it's an event */}
+        <h1>{session.title}</h1>
       </div>
       
       {isEarlyJoin && (
@@ -207,6 +235,7 @@ export const Session = ({ userId, username }: SessionProps) => {
             sessionId={sessionId || ""}
             userId={userId}
             username={username}
+            participantIds={participantIds} // Pass participantIds
           />
         </div>
         <div className={styles.sidebarArea}>

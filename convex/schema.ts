@@ -20,10 +20,13 @@ export default defineSchema({
   events: defineTable({
     userId: v.string(),
     title: v.string(),
-    start: v.string(),
-    end: v.optional(v.string()),
+    start: v.string(), // Store start time as ISO string
+    end: v.optional(v.string()), // Store end time as ISO string, optional
     createdAt: v.number(),
-  }).index("by_userId", ["userId"]),
+    participantIds: v.optional(v.array(v.string())), // Array of user IDs in the session
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_start", ["userId", "start"]),
 
   // New table for WebRTC signaling
   videoSignals: defineTable({
