@@ -24,4 +24,19 @@ export default defineSchema({
     end: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  // New table for WebRTC signaling
+  videoSignals: defineTable({
+    sessionId: v.string(),      // ID of the session the signal belongs to
+    userId: v.string(),         // ID of the user sending the signal
+    targetUserId: v.string(),   // ID of the user the signal is intended for
+    type: v.union(             // Type of signal
+      v.literal("offer"),
+      v.literal("answer"),
+      v.literal("candidate")
+    ),
+    signal: v.string(),         // The signaling data (SDP offer/answer or ICE candidate)
+  })
+    .index("by_session_and_targetUser", ["sessionId", "targetUserId"])
+    .index("by_session_and_user", ["sessionId", "userId"]),
 });

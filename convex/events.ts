@@ -234,8 +234,8 @@ export const getEventById = query({
           return null;
         }
 
-        // Check if it's actually an event (has userId field)
-        if ("userId" in event) {
+        // Check if it's actually an event by looking for event-specific fields
+        if ("title" in event && "start" in event) {
           // Log session timing information for debugging
           const now = new Date();
           const startTime = new Date(event.start);
@@ -266,7 +266,15 @@ export const getEventById = query({
           };
         }
 
-        return null;
+        // TODO: Decide if we should return null or the document if it's not an event?
+        // Returning the document might be confusing if the caller expects an Event type.
+        // Returning null might be safer if the caller specifically expects an event.
+        // For now, let's assume the caller might handle non-event docs, but log a warning.
+        else {
+             console.warn(`Document found for ID ${eventId} is not an event document. Type might be ${typeof event}.`);
+        }
+
+        return event; // Return the raw document
       } catch (error) {
         console.error("Error getting event:", error);
         return null;
