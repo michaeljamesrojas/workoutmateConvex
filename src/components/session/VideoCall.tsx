@@ -27,10 +27,14 @@ const stunServers = {
 
 export const VideoCall = ({ sessionId, userId, username, participantIds }: VideoCallProps) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [peerConnections, setPeerConnections] = useState<Record<string, PeerConnection>>({});
+  const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({}); // State to hold remote streams
   const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({}); // Refs for remote video elements
   const pendingCandidatesRef = useRef<Record<string, RTCIceCandidateInit[]>>({}); // Ref to store pending candidates
+  const peerConnections = useRef<Record<string, PeerConnection>>({}); // Use useRef for peer connections
+  const makingOffer = useRef<Record<string, boolean>>({}); // Track makingOffer state
+  const ignoreOffer = useRef<Record<string, boolean>>({}); // Track ignoreOffer state
+  const queuedCandidates = useRef<Record<string, RTCIceCandidateInit[]>>({}); // Track queued candidates
 
   // Convex Auth state
   const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
@@ -61,7 +65,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
     // Cleanup
     return () => {
       localStream?.getTracks().forEach((track) => track.stop());
-      Object.values(peerConnections).forEach(pc => pc.connection.close());
+      Object.values(peerConnections.current).forEach(pc => pc.connection.close());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
@@ -80,12 +84,68 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         pc.addTrack(track, localStream);
     });
 
+    // Triggered when the connection needs to negotiate (e.g., adding tracks)
+    pc.onnegotiationneeded = async () => {
+        // Avoid negotiation for self or if connection is closing
+        if (!userId || userId === targetUserId || pc.signalingState === 'closed') {
+            console.log(`Skipping negotiation for ${targetUserId} (self, closed, or no user)`);
+            return;
+        }
+
+        console.log(`Negotiation needed with ${targetUserId}, state: ${pc.signalingState}`);
+
+        // Perfect Negotiation: Check flags before creating offer
+        if (makingOffer.current[targetUserId] || ignoreOffer.current[targetUserId]) {
+            console.log(`Negotiation needed for ${targetUserId}, but making/ignore flag set. Skipping offer creation.`);
+            return;
+        }
+
+        // Only proceed if the state is stable (or potentially closed if we want to restart)
+        if (pc.signalingState !== 'stable') {
+            console.log(`Negotiation needed for ${targetUserId}, but state is ${pc.signalingState}. Skipping offer creation.`);
+            return;
+        }
+
+        try {
+            // Set flag before starting async operation
+            makingOffer.current[targetUserId] = true;
+            console.log(`Setting local description (offer) for ${targetUserId} via negotiationneeded.`);
+            const offer = await pc.createOffer();
+
+            // Double-check state *after* offer creation, *before* setting local desc
+            if (pc.signalingState !== 'stable') {
+                console.warn(`State changed during offer creation for ${targetUserId} (now ${pc.signalingState}). Aborting offer.`);
+                makingOffer.current[targetUserId] = false; // Reset flag
+                return;
+            }
+
+            await pc.setLocalDescription(offer);
+            console.log(`Local description (offer) set for ${targetUserId}`);
+
+            console.log(`Sending offer to ${targetUserId} via negotiationneeded`);
+            sendSignal({
+                sessionId,
+                targetUserId: targetUserId,
+                type: "offer",
+                signal: JSON.stringify({ type: pc.localDescription?.type, sdp: pc.localDescription?.sdp }),
+            });
+        } catch (error) {
+            console.error(`Error during negotiationneeded offer for ${targetUserId}:`, error);
+        } finally {
+            // Reset flag after operation completes or fails
+            // Check if an incoming offer caused us to ignore ours before resetting
+            if (!ignoreOffer.current[targetUserId]) {
+                makingOffer.current[targetUserId] = false;
+            }
+        }
+    };
+
     // Handle incoming remote tracks
     pc.ontrack = (event) => {
       console.log(`Track received from ${targetUserId}`, event.streams[0]);
-      setPeerConnections((prev) => ({
+      setRemoteStreams(prev => ({
         ...prev,
-        [targetUserId]: { ...prev[targetUserId], remoteStream: event.streams[0] },
+        [targetUserId]: event.streams[0]
       }));
     };
 
@@ -108,18 +168,11 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         // Can update UI or handle disconnections here
         if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
             // Clean up connection for this peer
-             setPeerConnections((prev) => {
-                const newState = { ...prev };
-                delete newState[targetUserId];
-                return newState;
-            });
+             delete peerConnections.current[targetUserId]; // Use delete instead of assigning undefined
         }
     };
 
-    setPeerConnections((prev) => ({
-      ...prev,
-      [targetUserId]: { connection: pc },
-    }));
+    peerConnections.current[targetUserId] = { connection: pc };
 
     return pc;
   }, [localStream, sendSignal, sessionId]); // Dependencies
@@ -133,9 +186,9 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
 
     console.log("Checking for new peers to connect to...", otherParticipantIds);
 
-    otherParticipantIds.forEach(async (peerId) => {
+    otherParticipantIds.forEach(peerId => {
       // Check if a connection already exists or is being established
-      if (!peerConnections[peerId]) {
+      if (!peerConnections.current[peerId]) {
         console.log(`Initiating connection to new peer: ${peerId}`);
 
         // 1. Create Peer Connection
@@ -145,74 +198,69 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
           return; // Skip if creation failed
         }
 
-        try {
-          // 2. Create Offer
-          console.log(`Creating offer for ${peerId}`);
-          const offer = await pc.createOffer();
-
-          // 3. Set Local Description
-          console.log(`Setting local description (offer) for ${peerId}`);
-          await pc.setLocalDescription(offer);
-
-          console.log(`Sending offer to ${peerId}`);
-          sendSignal({
-            sessionId,
-            targetUserId: peerId,
-            type: "offer",
-            // Send only the type and sdp properties, stringified
-            signal: JSON.stringify({ type: offer.type, sdp: offer.sdp }),
-          });
-
-          // Process any queued candidates for this peer immediately after setting local desc
-          // (Though typically candidates are added after remote desc is set)
-          // Consider if this is needed or if processing only after setRemoteDescription is sufficient.
-          if (pendingCandidatesRef.current[peerId]) {
-            console.log(`Processing ${pendingCandidatesRef.current[peerId].length} queued candidates for ${peerId}`);
-            pendingCandidatesRef.current[peerId].forEach(async (candidateInit) => {
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
-                console.log(`Added queued ICE candidate from ${peerId}`);
-              } catch (addError) {
-                console.error(`Error adding queued ICE candidate for ${peerId}:`, addError);
-              }
-            });
-            delete pendingCandidatesRef.current[peerId]; // Clear queue
-          }
-
-        } catch (error) {
-           console.error(`Error creating/sending offer to ${peerId}:`, error);
-           // Clean up the failed connection attempt?
-           setPeerConnections((prev) => {
-             const newState = { ...prev };
-             delete newState[peerId];
-             return newState;
-           });
-           pc.close();
+        // Note: Offer creation is now primarily handled by onnegotiationneeded
+        // triggered by adding tracks in createPeerConnection. We might not need
+        // to explicitly create/send an offer here anymore, unless onnegotiationneeded
+        // doesn't fire reliably in all browsers/scenarios.
+        // Let's keep the explicit offer sending for now as a fallback, but guard it.
+        if (pc.signalingState === 'stable' && !makingOffer.current[peerId] && !ignoreOffer.current[peerId]){
+            console.log(`Attempting initial offer to new peer: ${peerId} (fallback)`);
+             makingOffer.current[peerId] = true; // Set flag
+            pc.createOffer()
+                .then(offer => {
+                    // Check state again before setting local description
+                     if (pc.signalingState !== 'stable') {
+                        console.warn(`State changed before setting initial offer for ${peerId}. Aborting.`);
+                        throw new Error(`Signaling state not stable: ${pc.signalingState}`);
+                     }
+                    return pc.setLocalDescription(offer);
+                })
+                .then(() => {
+                console.log(`Initial local description (offer) set for ${peerId}`);
+                if (pc.localDescription) {
+                    sendSignal({
+                    sessionId,
+                    targetUserId: peerId,
+                    type: "offer",
+                    signal: JSON.stringify({ type: pc.localDescription.type, sdp: pc.localDescription.sdp }),
+                    });
+                }
+                })
+                .catch(error => {
+                    console.error(`Error creating/sending initial offer to ${peerId}:`, error);
+                     // Clean up potentially inconsistent state
+                     delete peerConnections.current[peerId];
+                     pc.close();
+                })
+                 .finally(() => {
+                    // Reset flag if not ignored
+                    if (!ignoreOffer.current[peerId]) {
+                         makingOffer.current[peerId] = false;
+                    }
+                 });
+        } else {
+             console.log(`Skipping initial offer for ${peerId}: state=${pc.signalingState}, making=${makingOffer.current[peerId]}, ignore=${ignoreOffer.current[peerId]}`);
         }
       } else {
-         console.log(`Connection status for existing peer ${peerId}: ${peerConnections[peerId]?.connection?.connectionState}`);
+         console.log(`Connection status for existing peer ${peerId}: ${peerConnections.current[peerId]?.connection?.connectionState}`);
          // Optional: Add logic here to re-initiate if connection failed previously
       }
     });
 
     // Optional: Clean up connections for peers who left
     // Get current peer IDs from state
-    const currentPeerIds = Object.keys(peerConnections);
+    const currentPeerIds = Object.keys(peerConnections.current);
     currentPeerIds.forEach(peerId => {
       if (!otherParticipantIds.includes(peerId)) {
         console.log(`Cleaning up connection for left peer: ${peerId}`);
-        peerConnections[peerId]?.connection?.close();
-        setPeerConnections(prev => {
-          const newState = { ...prev };
-          delete newState[peerId];
-          return newState;
-        });
+        peerConnections.current[peerId]?.connection?.close();
+        delete peerConnections.current[peerId]; // Use delete instead of assigning undefined
       }
     });
 
   // Dependencies: Run when participant list, local stream, or auth state changes
   // Added peerConnections to re-evaluate state, but be cautious of loops
-  }, [otherParticipantIds, localStream, isAuthLoading, isAuthenticated, createPeerConnection, sendSignal, sessionId, peerConnections]);
+  }, [otherParticipantIds, localStream, isAuthLoading, isAuthenticated, createPeerConnection, sendSignal, sessionId]);
 
   // --- Process Incoming Signals ---
   useEffect(() => {
@@ -230,7 +278,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
       if (senderId === userId) return; // Compare aliased senderId with component's userId
 
       // Ensure peer connection exists
-      const peerData = peerConnections[senderId];
+      const peerData = peerConnections.current[senderId];
       let pc: RTCPeerConnection | null = peerData ? peerData.connection : null;
 
       // If connection doesn't exist for an incoming signal (e.g., offer), create it.
@@ -239,10 +287,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         const createdPc = createPeerConnection(senderId); // Returns RTCPeerConnection | null
         if (createdPc) { // Check ensures createdPc is not null here
             // Update state *inside* the check where createdPc is known to be non-null
-            setPeerConnections((prev) => ({
-                 ...prev,
-                 [senderId]: { connection: createdPc, remoteStream: undefined } // Explicitly assign non-null connection
-             }));
+            peerConnections.current[senderId] = { connection: createdPc, remoteStream: undefined }; // Explicitly assign non-null connection
             pc = createdPc; // Assign the non-null connection to the loop variable 'pc'
         } else {
              console.error(`Failed to create peer connection for signal from ${senderId}`);
@@ -262,62 +307,69 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         switch (type) {
           case "offer":
             console.log(`Received offer from: ${senderId}`);
-            // Recreate RTCSessionDescription from parsed data
             const offerDescription = new RTCSessionDescription(parsedData);
 
-            // Basic glare handling: Check signaling state
-            // If we are also in the process of sending an offer ('have-local-offer'),
-            // we might need to decide which offer wins (e.g., based on user IDs).
-            if (pc.signalingState !== 'stable') {
-              console.warn(`Received offer from ${senderId} while signaling state is ${pc.signalingState}. Potential glare.`);
-              // More sophisticated glare handling might be needed here.
-              // For simplicity, we'll try to proceed, but this might lead to errors.
-              // A common strategy is comparing user IDs and having the one with the lower ID rollback.
-               // Basic glare handling: higher ID initiates rollback (can be more sophisticated)
-              // This assumes Clerk user IDs can be compared lexicographically
-              const localUserId = userId || ""; // Ensure userId is available
-              if (localUserId < senderId) {
-                  console.log("Glare detected: Local ID lower, ignoring received offer, local offer should proceed.");
-                  return; // Let the local offer initiation proceed
-              } else {
-                  console.log("Glare detected: Local ID higher, rolling back local offer process (if any) and proceeding with received offer.");
-                  // Implement rollback if necessary (e.g., close existing connection attempt and restart)
-                  // For now, we proceed assuming the local setLocalDescription might fail gracefully or be overwritten
-              }
+            // Perfect negotiation: Check makingOffer/ignoreOffer flags and signaling state
+            const isMakingOffer = makingOffer.current[senderId];
+            const polite = userId! > senderId; // Determine politeness based on user ID comparison
+            const ignore = ignoreOffer.current[senderId];
+
+            console.log(`Offer from ${senderId}: polite=${polite}, makingOffer=${isMakingOffer}, ignoreOffer=${ignore}, state=${pc.signalingState}`);
+
+            // Condition 1: If we are making an offer and we are the impolite peer, ignore the incoming offer.
+            if (isMakingOffer && !polite) {
+                console.log(`Ignoring offer from ${senderId} (impolite peer, currently making offer)`);
+                return; // Let our offer proceed
             }
 
-            await pc.setRemoteDescription(offerDescription);
-            console.log(`Remote description (offer) set for ${senderId}`);
+             // Condition 2: Set ignore flag if we receive an offer while not stable and we are the polite peer
+            // This prevents us from processing our own offer if it was created concurrently
+            ignoreOffer.current[senderId] = !polite && pc.signalingState !== 'stable';
 
-            // Process any queued candidates for this peer
-            if (pendingCandidatesRef.current[senderId]) {
-              console.log(`Processing ${pendingCandidatesRef.current[senderId].length} queued candidates for ${senderId}`);
-              pendingCandidatesRef.current[senderId].forEach(async (candidateInit) => {
-                try {
-                  await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
-                  console.log(`Added queued ICE candidate from ${senderId}`);
-                } catch (addError) {
-                  console.error(`Error adding queued ICE candidate for ${senderId}:`, addError);
+            // Condition 3: Check signaling state before setting remote description
+            if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer') {
+                console.warn(`Received offer from ${senderId} but signaling state is ${pc.signalingState}. Cannot process.`);
+                 // If state is have-remote-offer, it's likely a duplicate, can safely ignore.
+                return;
+            }
+
+            // Handle offer collision (glare) based on politeness
+            console.log(`[Glare] Handling offer collision. My ID: ${userId}, Sender ID: ${senderId}, Polite: ${polite}`);
+            if (polite) {
+                // Polite peer rollback: Set remote description, create answer.
+                console.log(`[Glare] Polite peer yielding to offer from ${senderId}. Setting remote, then answering.`);
+                await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: parsedData.sdp }));
+                console.log(`Remote description (offer) set for ${senderId}`);
+
+                console.log(`Creating answer for ${senderId}`);
+                if (pc.signalingState === 'have-remote-offer') { // Check state before creating answer
+                    const answer = await pc.createAnswer();
+                    console.log(`Setting local description (answer) for ${senderId}`);
+                    if (pc.signalingState === 'have-remote-offer') { // Final check before setting local answer
+                        await pc.setLocalDescription(answer);
+                        ignoreOffer.current[senderId] = false; // Reset flag
+                        console.log(`Sending answer to ${senderId}`);
+                        sendSignal({
+                            sessionId,
+                            targetUserId: senderId,
+                            type: "answer",
+                            signal: JSON.stringify({ type: answer.type, sdp: answer.sdp }),
+                        });
+                    } else {
+                        console.warn(`[Aborting Answer] State changed to ${pc.signalingState} just before setting local description (answer) for ${senderId}.`);
+                        ignoreOffer.current[senderId] = false; // Reset flag
+                    }
+                } else {
+                     console.warn(`Tried to create answer for ${senderId} but signaling state is ${pc.signalingState} (expected have-remote-offer).`);
+                     ignoreOffer.current[senderId] = false; // Reset flag
                 }
-              });
-              delete pendingCandidatesRef.current[senderId]; // Clear queue
+            } else {
+                // Impolite peer rollback: Ignore the incoming offer for now.
+                console.log(`[Glare] Impolite peer received offer from ${senderId} while in ${pc.signalingState}. Ignoring this offer and setting ignoreOffer flag.`);
+                ignoreOffer.current[senderId] = true; // Set flag to ignore subsequent offers until this negotiation resolves
+                // Do NOT process this incoming offer (no setRemoteDescription, no createAnswer)
+                // Let the negotiation initiated by this impolite peer proceed.
             }
-
-            deleteSignal({ signalId: signal._id });
-
-            console.log(`Creating answer for ${senderId}`);
-            const answer = await pc.createAnswer();
-            console.log(`Setting local description (answer) for ${senderId}`);
-            await pc.setLocalDescription(answer);
-
-            console.log(`Sending answer to ${senderId}`);
-            sendSignal({
-              sessionId,
-              targetUserId: senderId,
-              type: "answer",
-              // Send only the type and sdp properties, stringified
-              signal: JSON.stringify({ type: answer.type, sdp: answer.sdp }),
-            });
             break;
 
           case "answer":
@@ -330,9 +382,9 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
                 console.log(`Remote description (answer) set for ${senderId}`);
 
                 // Process any queued candidates for this peer
-                if (pendingCandidatesRef.current[senderId]) {
-                  console.log(`Processing ${pendingCandidatesRef.current[senderId].length} queued candidates for ${senderId}`);
-                  pendingCandidatesRef.current[senderId].forEach(async (candidateInit) => {
+                if (queuedCandidates.current[senderId]) {
+                  console.log(`Processing ${queuedCandidates.current[senderId].length} queued candidates for ${senderId}`);
+                  queuedCandidates.current[senderId].forEach(async (candidateInit) => {
                     try {
                       await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
                       console.log(`Added queued ICE candidate from ${senderId}`);
@@ -340,7 +392,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
                       console.error(`Error adding queued ICE candidate for ${senderId}:`, addError);
                     }
                   });
-                  delete pendingCandidatesRef.current[senderId]; // Clear queue
+                  delete queuedCandidates.current[senderId]; // Clear queue
                 }
             } else {
                 console.warn(`Received answer from ${senderId}, but signaling state is ${pc.signalingState}. Ignoring.`);
@@ -364,10 +416,10 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
             } else {
               console.warn(`Received ICE candidate from ${senderId}, but remote description not set yet. Queueing.`);
               // Queue the candidate if remote description isn't set
-              if (!pendingCandidatesRef.current[senderId]) {
-                pendingCandidatesRef.current[senderId] = [];
+              if (!queuedCandidates.current[senderId]) {
+                queuedCandidates.current[senderId] = [];
               }
-              pendingCandidatesRef.current[senderId].push(parsedData); // Store the raw parsed data
+              queuedCandidates.current[senderId].push(parsedData); // Store the raw parsed data
             }
 
             deleteSignal({ signalId: signal._id });
@@ -383,17 +435,17 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
 
     // Note: Consider adding logic to clear processed signals from the Convex query if they persist.
 
-  }, [signals, isAuthLoading, isAuthenticated, peerConnections, createPeerConnection, sendSignal, sessionId, userId]); // Added userId dependency
+  }, [signals, isAuthLoading, isAuthenticated, createPeerConnection, sendSignal, sessionId, userId, deleteSignal]); // Added userId dependency
 
   // --- Assign Remote Streams to Video Elements ---
   useEffect(() => {
-    Object.entries(peerConnections).forEach(([peerId, pcData]) => {
-      if (pcData.remoteStream && remoteVideoRefs.current[peerId]) {
+    Object.entries(remoteStreams).forEach(([peerId, stream]) => {
+      if (stream && remoteVideoRefs.current[peerId]) {
         console.log(`Assigning remote stream from ${peerId} to video element`);
-        remoteVideoRefs.current[peerId]!.srcObject = pcData.remoteStream;
+        remoteVideoRefs.current[peerId]!.srcObject = stream;
       }
     });
-  }, [peerConnections]); // Re-run when peerConnections change
+  }, [remoteStreams]); // Re-run when remoteStreams change
 
 
   // --- Render Component ---
@@ -414,17 +466,17 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         </div>
 
         {/* Remote Videos */}
-        {otherParticipantIds.map((peerId) => (
+        {Object.keys(remoteStreams).map((peerId) => (
             // Only render if connection exists, even if stream not yet arrived
-           peerConnections[peerId] && (
+           peerConnections.current[peerId] && (
              <div key={peerId} className={styles.videoWrapper}>
                 <video
-                    ref={(el) => (remoteVideoRefs.current[peerId] = el)}
+                    ref={(el) => (remoteVideoRefs.current[peerId] = el)} // Assign ref
                     className={styles.videoElement}
                     autoPlay
                     playsInline
                 />
-                <span>Peer: {peerId.substring(0, 4)} {peerConnections[peerId].connection.connectionState}</span>
+                <span>Peer: {peerId.substring(0, 4)} {peerConnections.current[peerId].connection.connectionState}</span>
                  {/* TODO: Get actual username for peerId */}
             </div>
            )
@@ -432,7 +484,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
       </div>
       <div className={styles.controls}>
         {/* TODO: Add call controls (mute audio, disable video, hang up) */}
-        <button onClick={() => console.log("Peer Connections:", peerConnections)}>Log Peers</button>
+        <button onClick={() => console.log("Peer Connections:", peerConnections.current)}>Log Peers</button>
          <button onClick={() => console.log("Signals:", signals)}>Log Signals</button>
       </div>
     </div>

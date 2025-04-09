@@ -85,14 +85,22 @@ export const deleteSignal = mutation({
         }
         const currentUserId = identity.subject;
 
-        // Optional: Verify the user is the targetUserId of the signal before deleting?
-        // This adds security but might be overkill if only the recipient queries/processes signals.
-        // const signal = await ctx.db.get(signalId);
-        // if (signal && signal.targetUserId !== currentUserId) {
-        //     throw new Error("User cannot delete a signal not targeted at them.");
-        // }
+        // Fetch the signal document first
+        const signal = await ctx.db.get(signalId);
 
-        await ctx.db.delete(signalId);
-        console.log(`Signal ${signalId} deleted by user ${currentUserId}`);
+        // Only attempt deletion if the signal exists
+        if (signal !== null) {
+            // Optional: You could re-add the check here if needed:
+            // if (signal.targetUserId !== currentUserId) {
+            //     console.warn(`User ${currentUserId} attempted to delete signal ${signalId} not targeted at them.`);
+            //     // Decide whether to throw an error or just log and exit
+            //     return; 
+            // }
+            
+            await ctx.db.delete(signalId);
+            console.log(`Signal ${signalId} deleted by user ${currentUserId}`);
+        } else {
+            console.log(`Signal ${signalId} not found, likely already deleted.`);
+        }
     }
 });
