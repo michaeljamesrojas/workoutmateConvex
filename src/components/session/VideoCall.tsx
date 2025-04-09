@@ -30,6 +30,7 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
   const [peerConnections, setPeerConnections] = useState<Record<string, PeerConnection>>({});
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
+  const pendingCandidatesRef = useRef<Record<string, RTCIceCandidateInit[]>>({}); // Ref to store pending candidates
 
   // Convex Auth state
   const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
@@ -123,100 +124,268 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
     return pc;
   }, [localStream, sendSignal, sessionId]); // Dependencies
 
-  // --- Initiate Calls to Other Participants ---
+  // --- Initiate Connections to New Peers ---
   useEffect(() => {
-    if (!localStream || participantIds.length <= 1) return; // Need local stream and others
+    if (!localStream || isAuthLoading || !isAuthenticated) {
+      console.log("Skipping peer connection initiation: Local stream or auth not ready.");
+      return; // Don't proceed if local stream or auth isn't ready
+    }
 
-    console.log("Attempting to initiate calls to:", otherParticipantIds);
+    console.log("Checking for new peers to connect to...", otherParticipantIds);
 
-    otherParticipantIds.forEach(async (targetUserId) => {
-      // Only initiate if not already connected or connecting
-      if (!peerConnections[targetUserId]) {
-        const pc = createPeerConnection(targetUserId);
-        if (pc) {
-            try {
-                console.log(`Creating offer for ${targetUserId}`);
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
+    otherParticipantIds.forEach(async (peerId) => {
+      // Check if a connection already exists or is being established
+      if (!peerConnections[peerId]) {
+        console.log(`Initiating connection to new peer: ${peerId}`);
 
-                console.log(`Sending offer to ${targetUserId}`);
-                sendSignal({
-                sessionId,
-                targetUserId,
-                type: "offer",
-                signal: JSON.stringify(offer),
-                });
-            } catch (error) {
-                console.error(`Error creating/sending offer to ${targetUserId}:`, error);
-            }
+        // 1. Create Peer Connection
+        const pc = createPeerConnection(peerId);
+        if (!pc) {
+          console.error(`Failed to create peer connection for ${peerId}`);
+          return; // Skip if creation failed
         }
+
+        try {
+          // 2. Create Offer
+          console.log(`Creating offer for ${peerId}`);
+          const offer = await pc.createOffer();
+
+          // 3. Set Local Description
+          console.log(`Setting local description (offer) for ${peerId}`);
+          await pc.setLocalDescription(offer);
+
+          console.log(`Sending offer to ${peerId}`);
+          sendSignal({
+            sessionId,
+            targetUserId: peerId,
+            type: "offer",
+            // Send only the type and sdp properties, stringified
+            signal: JSON.stringify({ type: offer.type, sdp: offer.sdp }),
+          });
+
+          // Process any queued candidates for this peer immediately after setting local desc
+          // (Though typically candidates are added after remote desc is set)
+          // Consider if this is needed or if processing only after setRemoteDescription is sufficient.
+          if (pendingCandidatesRef.current[peerId]) {
+            console.log(`Processing ${pendingCandidatesRef.current[peerId].length} queued candidates for ${peerId}`);
+            pendingCandidatesRef.current[peerId].forEach(async (candidateInit) => {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+                console.log(`Added queued ICE candidate from ${peerId}`);
+              } catch (addError) {
+                console.error(`Error adding queued ICE candidate for ${peerId}:`, addError);
+              }
+            });
+            delete pendingCandidatesRef.current[peerId]; // Clear queue
+          }
+
+        } catch (error) {
+           console.error(`Error creating/sending offer to ${peerId}:`, error);
+           // Clean up the failed connection attempt?
+           setPeerConnections((prev) => {
+             const newState = { ...prev };
+             delete newState[peerId];
+             return newState;
+           });
+           pc.close();
+        }
+      } else {
+         console.log(`Connection status for existing peer ${peerId}: ${peerConnections[peerId]?.connection?.connectionState}`);
+         // Optional: Add logic here to re-initiate if connection failed previously
       }
     });
-  // Intentionally run only when participants change significantly or local stream ready
-  // Adjust dependencies carefully based on how participantIds is managed upstream
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localStream, JSON.stringify(otherParticipantIds), createPeerConnection]);
 
+    // Optional: Clean up connections for peers who left
+    // Get current peer IDs from state
+    const currentPeerIds = Object.keys(peerConnections);
+    currentPeerIds.forEach(peerId => {
+      if (!otherParticipantIds.includes(peerId)) {
+        console.log(`Cleaning up connection for left peer: ${peerId}`);
+        peerConnections[peerId]?.connection?.close();
+        setPeerConnections(prev => {
+          const newState = { ...prev };
+          delete newState[peerId];
+          return newState;
+        });
+      }
+    });
+
+  // Dependencies: Run when participant list, local stream, or auth state changes
+  // Added peerConnections to re-evaluate state, but be cautious of loops
+  }, [otherParticipantIds, localStream, isAuthLoading, isAuthenticated, createPeerConnection, sendSignal, sessionId, peerConnections]);
 
   // --- Process Incoming Signals ---
   useEffect(() => {
-    if (!signals || signals.length === 0 || !isAuthenticated || isAuthLoading) return;
+    if (isAuthLoading || !isAuthenticated || !signals) {
+      return; // Don't process signals if auth is loading or not authenticated
+    }
 
     console.log("Received signals:", signals);
 
-    signals.forEach(async (signal: Doc<"videoSignals">) => {
-      console.log('Processing signal:', signal);
-      const pc = peerConnections[signal.userId];
+    signals?.forEach(async (signal) => {
+      // Correct destructuring: Use userId and alias it as senderId
+      const { userId: senderId, type, signal: signalData } = signal;
 
-      // Check if peer connection exists first
-      if (pc) {
-        // Process signal only if pc exists
-        try {
-          if (signal.type === 'offer') {
-            console.log('Received offer from:', signal.userId);
-            // Use pc directly (no '!')
-            await pc.connection.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: signal.signal }));
-            const answer = await pc.connection.createAnswer();
-            await pc.connection.setLocalDescription(answer);
-            // Send answer back to the offerer
-            sendSignal({ 
-              sessionId, 
-              // userId, // Sender userId is inferred by the backend
-              targetUserId: signal.userId, // Target is the user who sent the offer
-              type: 'answer', 
-              signal: answer.sdp! // Keep '!' for sdp as it's inherently possibly null
-            });
-            console.log('Sent answer to:', signal.userId);
-          } else if (signal.type === 'answer') {
-            console.log('Received answer from:', signal.userId);
-            // Use pc directly (no '!')
-            await pc.connection.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: signal.signal }));
-            console.log('Set remote description (answer) for:', signal.userId);
-          } else if (signal.type === 'candidate') {
-            console.log('Received ICE candidate from:', signal.userId);
-            const candidate = new RTCIceCandidate(JSON.parse(signal.signal));
-            // Use pc directly (no '!')
-            await pc.connection.addIceCandidate(candidate); 
-            console.log('Added ICE candidate for:', signal.userId);
-          }
-          // Delete signal after successful processing within the try block
-          await deleteSignal({ signalId: signal._id });
-        } catch (error) {
-          console.error("Error processing signal:", signal, error);
-          // Optionally delete signal even on error?
-          // await deleteSignal({ signalId: signal._id }); 
+      // Don't process signals from self
+      if (senderId === userId) return; // Compare aliased senderId with component's userId
+
+      // Ensure peer connection exists
+      const peerData = peerConnections[senderId];
+      let pc: RTCPeerConnection | null = peerData ? peerData.connection : null;
+
+      // If connection doesn't exist for an incoming signal (e.g., offer), create it.
+      if (!pc && type === 'offer') {
+        console.log(`Signal received from new peer ${senderId}. Creating connection.`);
+        const createdPc = createPeerConnection(senderId); // Returns RTCPeerConnection | null
+        if (createdPc) { // Check ensures createdPc is not null here
+            // Update state *inside* the check where createdPc is known to be non-null
+            setPeerConnections((prev) => ({
+                 ...prev,
+                 [senderId]: { connection: createdPc, remoteStream: undefined } // Explicitly assign non-null connection
+             }));
+            pc = createdPc; // Assign the non-null connection to the loop variable 'pc'
+        } else {
+             console.error(`Failed to create peer connection for signal from ${senderId}`);
+             // pc remains null, subsequent check will handle this
         }
-      } else {
-        // Handle case where pc is null/undefined
-        console.warn(`Peer connection for ${signal.userId} not found while processing signal type ${signal.type}. Signal might be stale or connection failed.`);
-        // Optionally delete the signal if it's likely stale and pc doesn't exist
-        // await deleteSignal({ signalId: signal._id }); 
+      }
+
+      // Check if pc is still null after potential creation attempt
+      if (!pc) {
+        console.warn(`No peer connection found for signal from ${senderId}. Signal type: ${type}. Ignoring.`);
+        return; // Exit if no valid connection
+      }
+
+      try {
+        const parsedData = JSON.parse(signalData);
+
+        switch (type) {
+          case "offer":
+            console.log(`Received offer from: ${senderId}`);
+            // Recreate RTCSessionDescription from parsed data
+            const offerDescription = new RTCSessionDescription(parsedData);
+
+            // Basic glare handling: Check signaling state
+            // If we are also in the process of sending an offer ('have-local-offer'),
+            // we might need to decide which offer wins (e.g., based on user IDs).
+            if (pc.signalingState !== 'stable') {
+              console.warn(`Received offer from ${senderId} while signaling state is ${pc.signalingState}. Potential glare.`);
+              // More sophisticated glare handling might be needed here.
+              // For simplicity, we'll try to proceed, but this might lead to errors.
+              // A common strategy is comparing user IDs and having the one with the lower ID rollback.
+               // Basic glare handling: higher ID initiates rollback (can be more sophisticated)
+              // This assumes Clerk user IDs can be compared lexicographically
+              const localUserId = userId || ""; // Ensure userId is available
+              if (localUserId < senderId) {
+                  console.log("Glare detected: Local ID lower, ignoring received offer, local offer should proceed.");
+                  return; // Let the local offer initiation proceed
+              } else {
+                  console.log("Glare detected: Local ID higher, rolling back local offer process (if any) and proceeding with received offer.");
+                  // Implement rollback if necessary (e.g., close existing connection attempt and restart)
+                  // For now, we proceed assuming the local setLocalDescription might fail gracefully or be overwritten
+              }
+            }
+
+            await pc.setRemoteDescription(offerDescription);
+            console.log(`Remote description (offer) set for ${senderId}`);
+
+            // Process any queued candidates for this peer
+            if (pendingCandidatesRef.current[senderId]) {
+              console.log(`Processing ${pendingCandidatesRef.current[senderId].length} queued candidates for ${senderId}`);
+              pendingCandidatesRef.current[senderId].forEach(async (candidateInit) => {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+                  console.log(`Added queued ICE candidate from ${senderId}`);
+                } catch (addError) {
+                  console.error(`Error adding queued ICE candidate for ${senderId}:`, addError);
+                }
+              });
+              delete pendingCandidatesRef.current[senderId]; // Clear queue
+            }
+
+            deleteSignal({ signalId: signal._id });
+
+            console.log(`Creating answer for ${senderId}`);
+            const answer = await pc.createAnswer();
+            console.log(`Setting local description (answer) for ${senderId}`);
+            await pc.setLocalDescription(answer);
+
+            console.log(`Sending answer to ${senderId}`);
+            sendSignal({
+              sessionId,
+              targetUserId: senderId,
+              type: "answer",
+              // Send only the type and sdp properties, stringified
+              signal: JSON.stringify({ type: answer.type, sdp: answer.sdp }),
+            });
+            break;
+
+          case "answer":
+            console.log(`Received answer from: ${senderId}`);
+            // Recreate RTCSessionDescription from parsed data
+            const answerDescription = new RTCSessionDescription(parsedData);
+            // Set answer only if we are expecting one
+            if (pc.signalingState === 'have-local-offer') {
+                await pc.setRemoteDescription(answerDescription);
+                console.log(`Remote description (answer) set for ${senderId}`);
+
+                // Process any queued candidates for this peer
+                if (pendingCandidatesRef.current[senderId]) {
+                  console.log(`Processing ${pendingCandidatesRef.current[senderId].length} queued candidates for ${senderId}`);
+                  pendingCandidatesRef.current[senderId].forEach(async (candidateInit) => {
+                    try {
+                      await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+                      console.log(`Added queued ICE candidate from ${senderId}`);
+                    } catch (addError) {
+                      console.error(`Error adding queued ICE candidate for ${senderId}:`, addError);
+                    }
+                  });
+                  delete pendingCandidatesRef.current[senderId]; // Clear queue
+                }
+            } else {
+                console.warn(`Received answer from ${senderId}, but signaling state is ${pc.signalingState}. Ignoring.`);
+            }
+
+            deleteSignal({ signalId: signal._id });
+            break;
+
+          case "candidate":
+            console.log(`Received ICE candidate from: ${senderId}`);
+            // Recreate RTCIceCandidate from parsed data
+            const iceCandidate = new RTCIceCandidate(parsedData);
+            // Add candidate only if remote description is set
+            if (pc.remoteDescription) {
+              try {
+                await pc.addIceCandidate(iceCandidate);
+                console.log(`Added ICE candidate from ${senderId}`);
+              } catch (addError) {
+                console.error(`Error adding ICE candidate for ${senderId}:`, addError);
+              }
+            } else {
+              console.warn(`Received ICE candidate from ${senderId}, but remote description not set yet. Queueing.`);
+              // Queue the candidate if remote description isn't set
+              if (!pendingCandidatesRef.current[senderId]) {
+                pendingCandidatesRef.current[senderId] = [];
+              }
+              pendingCandidatesRef.current[senderId].push(parsedData); // Store the raw parsed data
+            }
+
+            deleteSignal({ signalId: signal._id });
+            break;
+
+          default:
+            console.warn(`Received unknown signal type: ${type}`);
+        }
+      } catch (error) {
+        console.error(`Error processing signal from ${senderId}:`, signal, error);
       }
     });
-  }, [signals, userId, sendSignal, deleteSignal, createPeerConnection, isAuthenticated, isAuthLoading, sessionId]); 
 
+    // Note: Consider adding logic to clear processed signals from the Convex query if they persist.
 
- // --- Assign Remote Streams to Video Elements ---
+  }, [signals, isAuthLoading, isAuthenticated, peerConnections, createPeerConnection, sendSignal, sessionId, userId]); // Added userId dependency
+
+  // --- Assign Remote Streams to Video Elements ---
   useEffect(() => {
     Object.entries(peerConnections).forEach(([peerId, pcData]) => {
       if (pcData.remoteStream && remoteVideoRefs.current[peerId]) {

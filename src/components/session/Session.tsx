@@ -198,6 +198,9 @@ export function Session({}: SessionProps) {
   // Ensure session is an event before accessing participantIds
   const participantIds = (session && "participantIds" in session && session.participantIds) ? session.participantIds : [];
 
+  // Log the participantIds being passed down on each render
+  console.log(`[Session.tsx] Rendering. Passing participantIds to VideoCall:`, participantIds);
+
   return (
     <div className={styles.sessionContainer}>
       <Header />
