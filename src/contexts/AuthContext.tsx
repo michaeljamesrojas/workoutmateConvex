@@ -37,33 +37,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // First check if we already have local auth data
         const storedUserId = localStorage.getItem("userId");
         const storedUsername = localStorage.getItem("username");
-        
-        if (storedUserId && storedUsername) {
-          console.log("Restoring local auth state from storage");
-          setUserId(storedUserId);
-          setUsername(storedUsername);
-        } else {
-          // No local auth data, use Clerk user information
-          console.log("Using Clerk user information");
-          // Use Clerk user ID
-          const clerkUserId = user.id;
-          // Try to get username from Clerk user object (using username or firstName+lastName as fallback)
-          const clerkUsername = user.username || 
+
+        // Derive potential new values from Clerk
+        const clerkUserId = user.id;
+        const clerkUsername = user.username || 
                               (user.firstName && user.lastName ? 
                                 `${user.firstName} ${user.lastName}` : 
                                 user.emailAddresses?.[0]?.emailAddress || 'user');
-          
-          // Store Clerk user information in local storage and state
+        
+        // Check if local storage exists AND matches current state. If not, update state from local storage.
+        if (storedUserId && storedUsername && (storedUserId !== userId || storedUsername !== username)) {
+          console.log("Restoring/updating local auth state from storage");
+          setUserId(storedUserId);
+          setUsername(storedUsername);
+        }
+        // If no local storage OR Clerk data is different from current state, update from Clerk.
+        else if (!storedUserId || !storedUsername || clerkUserId !== userId || clerkUsername !== username) {
+          console.log("Using Clerk user information to update state");
           localStorage.setItem("userId", clerkUserId);
           localStorage.setItem("username", clerkUsername);
-          setUserId(clerkUserId);
-          setUsername(clerkUsername);
+          // Only update state if it's actually different
+          if (clerkUserId !== userId) setUserId(clerkUserId);
+          if (clerkUsername !== username) setUsername(clerkUsername);
         }
+        // If Clerk is signed in but state already matches, do nothing
+        
+      } else if (!isSignedIn && (userId || username)) {
+          // Handle case where Clerk signs out but local state still exists (optional)
+          // The logout function already handles clearing state, so maybe just log here.
+          console.log("Clerk signed out, local state might still exist.");
       }
     };
     
     checkClerkAuth();
-  }, [isSignedIn, clerkLoaded, userId, username, user]);
+  }, [isSignedIn, clerkLoaded, user]);
 
   const login = (newUserId: string, newUsername: string) => {
     console.log("Login called with", { newUserId, newUsername });

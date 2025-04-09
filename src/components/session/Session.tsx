@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useConvexAuth } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
+import { useUser } from "@clerk/clerk-react"; 
 import { api } from "../../convex";
 import { Header } from "../layout";
 import { SessionChat } from "../messaging";
@@ -8,13 +9,7 @@ import styles from "./Session.module.css";
 import { useEffect, useState } from "react";
 import { showToast } from "../../utils/toast";
 
-interface SessionProps {
-  userId: string | null;
-  username: string | null;
-}
-
-// Constants
-const EARLY_JOIN_MINUTES = 10;
+interface SessionProps {}
 
 interface SessionStatus {
   canJoin: boolean;
@@ -23,7 +18,7 @@ interface SessionStatus {
   timeRemaining?: string;
 }
 
-export const Session = ({ userId, username }: SessionProps) => {
+export function Session({}: SessionProps) {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>({
@@ -34,8 +29,8 @@ export const Session = ({ userId, username }: SessionProps) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [hasShownJoinToast, setHasShownJoinToast] = useState(false);
 
-  // Convex Auth state
-  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
+  // Use Clerk's useUser hook directly for auth state and user details
+  const { isLoaded: clerkLoaded, isSignedIn, user } = useUser();
 
   // Mutation for joining the session
   const joinSessionMutation = useMutation(api.events.joinSession);
@@ -63,7 +58,7 @@ export const Session = ({ userId, username }: SessionProps) => {
 
     // Calculate time values
     const timeUntilStart = startTime.getTime() - now.getTime();
-    const earlyJoinThreshold = EARLY_JOIN_MINUTES * 60 * 1000; // 10 minutes in milliseconds
+    const earlyJoinThreshold = 10 * 60 * 1000; // 10 minutes in milliseconds
     
     if (timeUntilStart > earlyJoinThreshold) {
       // Session starts in more than 10 minutes - cannot join yet
@@ -126,15 +121,11 @@ export const Session = ({ userId, username }: SessionProps) => {
     }
   }, [session, currentTime, hasShownJoinToast]);
 
-  // Effect to join the session when allowed and authenticated
+  // Effect to join session when conditions are met
   useEffect(() => {
-    // Only attempt to join if:
-    // 1. Session status allows joining
-    // 2. We have a sessionId
-    // 3. Convex auth is not loading
-    // 4. Convex auth confirms user is authenticated
-    if (sessionStatus.canJoin && sessionId && !isAuthLoading && isAuthenticated) {
-      console.log("Attempting to join session (auth confirmed):", sessionId);
+    // Use clerkLoaded and isSignedIn for the check
+    if (sessionStatus.canJoin && sessionId && clerkLoaded && isSignedIn) {
+      console.log("Attempting to join session (Clerk auth confirmed):", sessionId);
       joinSessionMutation({ eventId: sessionId as any }) // Cast to any if Id type causes issues
         .then(() => {
           console.log("Successfully called joinSession mutation");
@@ -144,35 +135,25 @@ export const Session = ({ userId, username }: SessionProps) => {
           showToast.error("Failed to mark you as joined in the session.");
         });
     }
-  }, [sessionStatus.canJoin, sessionId, joinSessionMutation, isAuthLoading, isAuthenticated]);
+  }, [sessionStatus.canJoin, sessionId, joinSessionMutation, clerkLoaded, isSignedIn]);
 
-  if (!userId || !username) {
+  // Derive userId and username only if signed in and loaded
+  const currentUserId = clerkLoaded && isSignedIn && user ? user.id : "";
+  const currentUsername = clerkLoaded && isSignedIn && user ? 
+                          user.username || 
+                          (user.firstName && user.lastName ? 
+                            `${user.firstName} ${user.lastName}` : 
+                            user.emailAddresses?.[0]?.emailAddress || 'user') 
+                          : "";
+
+  // If session data is still loading
+  if (!session) {
     return (
       <div className={styles.sessionContainer}>
-        <Header username={null} />
+        <Header />
         <div className={styles.errorContainer}>
           <div className={styles.errorMessage}>
-            Please log in to join this session
-          </div>
-          <button 
-            className={styles.actionButton}
-            onClick={() => navigate('/')}
-          >
-            Go to Login
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!session || !("title" in session) || !("start" in session)) {
-    // Handle cases where session is loading or is not a valid event type
-    return (
-      <div className={styles.sessionContainer}>
-        <Header username={username} />
-        <div className={styles.errorContainer}>
-          <div className={styles.errorMessage}>
-            {session === null ? "Session not found or invalid." : "Loading session information..."}
+            Loading session information...
           </div>
         </div>
       </div>
@@ -183,13 +164,12 @@ export const Session = ({ userId, username }: SessionProps) => {
   if (!sessionStatus.canJoin) {
     return (
       <div className={styles.sessionContainer}>
-        <Header username={username} />
+        <Header />
         <div className={styles.sessionHeader}>
           <button className={styles.backButton} onClick={() => navigate(-1)}>
             ← Back
           </button>
-          {/* Access title only after confirming it's an event */}
-          <h1>{session.title}</h1>
+          <h1>{session && 'title' in session ? session.title : 'Session'}</h1>
         </div>
         <div className={styles.errorContainer}>
           <div className={styles.errorMessage}>
@@ -220,13 +200,12 @@ export const Session = ({ userId, username }: SessionProps) => {
 
   return (
     <div className={styles.sessionContainer}>
-      <Header username={username} />
+      <Header />
       <div className={styles.sessionHeader}>
         <button className={styles.backButton} onClick={() => navigate(-1)}>
           ← Back
         </button>
-        {/* Access title only after confirming it's an event */}
-        <h1>{session.title}</h1>
+        <h1>{session && 'title' in session ? session.title : 'Loading...'}</h1>
       </div>
       
       {isEarlyJoin && (
@@ -239,13 +218,13 @@ export const Session = ({ userId, username }: SessionProps) => {
 
       <div className={styles.sessionContent}>
         <div className={styles.mainArea}>
-          {/* Only render VideoCall when auth is loaded and user is authenticated */}
-          {!isAuthLoading && isAuthenticated ? (
+          {/* Use clerkLoaded and isSignedIn for the render condition */}
+          {clerkLoaded && isSignedIn ? (
             <VideoCall
               sessionId={sessionId || ""}
-              userId={userId}
-              username={username}
-              participantIds={participantIds} // Pass participantIds
+              userId={currentUserId}      // Pass derived userId
+              username={currentUsername}  // Pass derived username
+              participantIds={participantIds} 
             />
           ) : (
             // Optionally show a loading state while auth checks
@@ -253,7 +232,8 @@ export const Session = ({ userId, username }: SessionProps) => {
           )}
         </div>
         <div className={styles.sidebarArea}>
-          <SessionChat userId={userId} username={username} />
+          {/* Remove userId and username props from SessionChat */}
+          <SessionChat /> 
         </div>
       </div>
     </div>

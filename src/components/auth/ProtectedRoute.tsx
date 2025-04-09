@@ -1,16 +1,20 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { useUser } from "@clerk/clerk-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { isAuthenticated } = useAuth();
+  const { isLoaded, isSignedIn } = useUser();
 
-  if (!isAuthenticated) {
+  if (!isLoaded) {
+    return <div>Loading authentication...</div>;
+  }
+
+  if (!isSignedIn) {
     return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
-}; 
+};

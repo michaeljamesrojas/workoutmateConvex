@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { useAuth } from "../../contexts/AuthContext";
+import { useUser } from "@clerk/clerk-react";
+import { SignOutButton } from "@clerk/clerk-react";
 import styles from "./Header.module.css";
 
-interface HeaderProps {
-  username: string | null;
-}
+interface HeaderProps {}
 
-export const Header = ({ username }: HeaderProps) => {
-  const { logout } = useAuth();
+export const Header = ({}: HeaderProps) => {
+  const { isLoaded, isSignedIn, user } = useUser();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -31,21 +30,35 @@ export const Header = ({ username }: HeaderProps) => {
     };
   }, []);
 
+  let displayUsername: string | null = null;
+  if (isLoaded && isSignedIn && user) {
+    displayUsername = user.username ||
+                      (user.firstName && user.lastName ?
+                        `${user.firstName} ${user.lastName}` :
+                        user.emailAddresses?.[0]?.emailAddress || 'user');
+  } else if (isLoaded && !isSignedIn) {
+    displayUsername = "Guest";
+  }
+
   return (
     <header className={styles.header}>
       <h1>Workoutmate</h1>
       <div className={styles.userProfile}>
         <div className={styles.profileContainer} onClick={toggleDropdown}>
           <div className={styles.profileIcon}>
-            {username ? username.charAt(0).toUpperCase() : "U"}
+            {displayUsername ? displayUsername.charAt(0).toUpperCase() : "U"}
           </div>
         </div>
         {isDropdownOpen && (
           <div ref={dropdownRef} className={styles.profileDropdown}>
-            <div className={styles.dropdownUserInfo}>{username}</div>
-            <button onClick={logout} className={styles.dropdownItem}>
-              Sign Out
-            </button>
+            <div className={styles.dropdownUserInfo}>{displayUsername}</div>
+            {isSignedIn && (
+              <SignOutButton>
+                <button className={styles.dropdownItem}>
+                  Sign Out
+                </button>
+              </SignOutButton>
+            )}
           </div>
         )}
       </div>

@@ -3,11 +3,9 @@ import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Login, ProtectedRoute, OAuthCallback } from "./components/auth";
 import { Calendar } from "./components/calendar";
 import { Session } from "./components/session";
-import { useAuth } from "./contexts/AuthContext";
 import { useUser } from "@clerk/clerk-react";
 
 export default function App() {
-  const { userId, username, isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoaded: clerkLoaded, isSignedIn, user } = useUser();
@@ -19,7 +17,7 @@ export default function App() {
       return;
     }
 
-    if (!isAuthenticated) {
+    if (!isSignedIn) { 
       // Only redirect if we're not already on a auth page
       if (
         location.pathname !== "/login" &&
@@ -37,7 +35,7 @@ export default function App() {
       console.log("Already authenticated, redirecting to home");
       navigate("/");
     }
-  }, [isAuthenticated, navigate, location.pathname, clerkLoaded]);
+  }, [isSignedIn, navigate, location.pathname, clerkLoaded]);
 
   // Main route structure
   return (
@@ -49,7 +47,7 @@ export default function App() {
         path="/"
         element={
           <ProtectedRoute>
-            <Calendar userId={userId} username={username} />
+            <Calendar />
           </ProtectedRoute>
         }
       />
@@ -57,7 +55,7 @@ export default function App() {
         path="/session/:sessionId"
         element={
           <ProtectedRoute>
-            <Session userId={userId} username={username} />
+            <Session />
           </ProtectedRoute>
         }
       />

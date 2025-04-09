@@ -5,7 +5,6 @@ import "./index.css";
 import App from "./App";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk"; 
-import { AuthProvider } from "./contexts/AuthContext";
 import { ClerkProvider, useAuth } from "@clerk/clerk-react";
 import { Toaster } from "react-hot-toast";
 
@@ -23,31 +22,29 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     >
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <BrowserRouter>
-          <AuthProvider>
-            <Toaster
-              position="bottom-right"
-              toastOptions={{
-                duration: 4000,
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#333',
+                color: '#fff',
+              },
+              success: {
                 style: {
-                  background: '#333',
-                  color: '#fff',
+                  background: '#10b981',
                 },
-                success: {
-                  style: {
-                    background: '#10b981',
-                  },
+              },
+              error: {
+                style: {
+                  background: '#ef4444',
                 },
-                error: {
-                  style: {
-                    background: '#ef4444',
-                  },
-                },
-              }}
-            />
-            <Routes>
-              <Route path="/*" element={<App />} />
-            </Routes>
-          </AuthProvider>
+              },
+            }}
+          />
+          <Routes>
+            <Route path="/*" element={<App />} />
+          </Routes>
         </BrowserRouter>
       </ConvexProviderWithClerk>
     </ClerkProvider>

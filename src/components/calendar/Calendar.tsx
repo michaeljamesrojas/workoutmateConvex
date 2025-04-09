@@ -4,8 +4,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
 import { Header } from "../layout";
-import { useAuth } from "../../contexts/AuthContext";
-import styles from "./Calendar.module.css";
+import { useUser } from "@clerk/clerk-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex";
 import { CalendarOptions } from "@fullcalendar/core";
@@ -14,11 +13,9 @@ import { EventModal } from "./EventModal";
 import { SessionDetailsModal } from "./SessionDetailsModal";
 import { Id } from "../../../convex/_generated/dataModel";
 import { showToast } from "../../utils/toast";
+import styles from "./Calendar.module.css";
 
-interface CalendarProps {
-  userId: string | null;
-  username: string | null;
-}
+interface CalendarProps {}
 
 interface CalendarEvent {
   id: Id<"events">;
@@ -28,9 +25,12 @@ interface CalendarEvent {
   creatorName: string;
 }
 
-export const Calendar = ({ userId, username }: CalendarProps) => {
-  const userDisplayName = username as string;
-  const currentUserId = userId as string;
+export function Calendar({}: CalendarProps) {
+  const { isLoaded, isSignedIn, user } = useUser();
+
+  const currentUserId = isLoaded && isSignedIn ? user.id : null;
+  const currentUsername = isLoaded && isSignedIn ? user.username : null;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -51,7 +51,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     creatorName: event.creatorName, // Keep the original creator name
     // Include creator name with the title, show "You" for current user's events
     title:
-      event.creatorName === userDisplayName
+      event.creatorName === currentUsername
         ? `You: ${event.title}`
         : event.creatorName && event.creatorName !== "Unknown User"
           ? `${event.creatorName}: ${event.title}`
@@ -152,6 +152,13 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     start: string;
     end: string;
   }): Promise<void> => {
+    // Add guard clause for authentication
+    if (!isSignedIn || !user) {
+      console.error("User not authenticated, cannot submit event.");
+      showToast.error("Authentication error, please log in again.");
+      return;
+    }
+    
     try {
       console.log("Calendar - Submitting event:", {
         isEdit: !!selectedEvent?.id,
@@ -171,11 +178,11 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
         });
         console.log("Calendar - Event updated successfully");
         showToast.session.updated();
-      } else if (userId) {
+      } else if (user) {
         // Create new event
-        console.log("Calendar - Creating new event for user:", currentUserId);
+        console.log("Calendar - Creating new event for user:", user.id);
         const eventId = await createEvent({
-          userId: currentUserId,
+          userId: user.id,
           title,
           start,
           end,
@@ -227,7 +234,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
           minute: "2-digit",
         });
       const event = events.find((e) => e.id === arg.event.id);
-      const isCurrentUser = event?.creatorName === userDisplayName;
+      const isCurrentUser = event?.creatorName === currentUsername;
       return (
         <CustomEvent
           event={{ title: arg.event.title, timeText }}
@@ -238,9 +245,29 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
     },
   };
 
+  // Handle loading state from Clerk
+  if (!isLoaded) {
+    return (
+      <div className={styles.calendarContainer}>
+        <Header /> 
+        <div className={styles.loading}>Loading user information...</div>
+      </div>
+    );
+  }
+
+  // Handle unauthenticated state (though ProtectedRoute should prevent this)
+  if (!isSignedIn) {
+     return (
+      <div className={styles.calendarContainer}>
+        <Header /> 
+        <div className={styles.loading}>Please log in to view the calendar.</div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.calendarContainer}>
-      <Header username={userDisplayName} />
+      <Header /> 
       <main className={styles.calendar}>
         <FullCalendar {...calendarOptions} />
       </main>
@@ -251,10 +278,10 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
           setSelectedEvent(null);
         }}
         onSubmit={handleEventSubmit}
-        onDelete={selectedEvent?.creatorName === userDisplayName ? handleEventDelete : undefined}
+        onDelete={selectedEvent?.creatorName === currentUsername ? handleEventDelete : undefined}
         dateStr={selectedDate}
         event={selectedEvent}
-        userId={currentUserId}
+        userId={user?.id ?? ''}
       />
       <SessionDetailsModal
         isOpen={isDetailsModalOpen}
@@ -263,7 +290,7 @@ export const Calendar = ({ userId, username }: CalendarProps) => {
           setViewingEvent(null);
         }}
         event={viewingEvent}
-        isOwnEvent={viewingEvent?.creatorName === userDisplayName}
+        isOwnEvent={viewingEvent?.creatorName === currentUsername}
         onEdit={handleEditEvent}
       />
     </div>
