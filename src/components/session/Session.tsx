@@ -239,12 +239,18 @@ export const Session = ({ userId, username }: SessionProps) => {
 
       <div className={styles.sessionContent}>
         <div className={styles.mainArea}>
-          <VideoCall
-            sessionId={sessionId || ""}
-            userId={userId}
-            username={username}
-            participantIds={participantIds} // Pass participantIds
-          />
+          {/* Only render VideoCall when auth is loaded and user is authenticated */}
+          {!isAuthLoading && isAuthenticated ? (
+            <VideoCall
+              sessionId={sessionId || ""}
+              userId={userId}
+              username={username}
+              participantIds={participantIds} // Pass participantIds
+            />
+          ) : (
+            // Optionally show a loading state while auth checks
+            <div>Authenticating video call...</div> 
+          )}
         </div>
         <div className={styles.sidebarArea}>
           <SessionChat userId={userId} username={username} />
