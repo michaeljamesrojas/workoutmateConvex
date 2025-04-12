@@ -114,6 +114,7 @@ export const getAllEvents = query({
       return {
         ...event,
         creatorName: userMap.get(event.userId) || "Unknown User",
+        creatorId: event.userId, // Add the userId as creatorId for direct comparison
       };
     });
 
@@ -130,10 +131,22 @@ export const update = mutation({
     end: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Get the identity of the user calling the mutation
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Update Session - Failed: User is not authenticated");
+    }
+
     const event = await ctx.db.get(args.id);
     if (!event) {
       console.log("Update Session - Failed: Event not found", args.id);
       throw new Error("Event not found");
+    }
+
+    // Check if the authenticated user is the creator of the event
+    if (event.userId !== identity.subject) { // Use identity.subject for Clerk user ID
+      console.log("Update Session - Failed: Permission denied", { eventId: args.id, requestor: identity.subject, owner: event.userId });
+      throw new Error("Permission denied: Only the event creator can update this session.");
     }
 
     // Validate that the start date is not in the past
