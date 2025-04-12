@@ -28,7 +28,7 @@ export const Chat = ({ userId, username }: ChatProps) => {
 
   return (
     <div className={styles.chatContainer}>
-      <Header username={userDisplayName} />
+      <Header />
       <main className={styles.chat}>
         {messages?.map((message) => (
           <article
