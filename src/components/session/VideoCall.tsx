@@ -28,6 +28,9 @@ const stunServers = {
 export const VideoCall = ({ sessionId, userId, username, participantIds }: VideoCallProps) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({}); // State to hold remote streams
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true); // State for local audio
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true); // State for local video
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({}); // Refs for remote video elements
   const pendingCandidatesRef = useRef<Record<string, RTCIceCandidateInit[]>>({}); // Ref to store pending candidates
@@ -69,6 +72,30 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
+
+  // --- Toggle Local Audio ---
+  const toggleAudio = useCallback(() => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsAudioEnabled(audioTrack.enabled);
+        console.log(`Local audio ${audioTrack.enabled ? 'enabled' : 'disabled'}`);
+      }
+    }
+  }, [localStream]);
+
+  // --- Toggle Local Video ---
+  const toggleVideo = useCallback(() => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoEnabled(videoTrack.enabled);
+        console.log(`Local video ${videoTrack.enabled ? 'enabled' : 'disabled'}`);
+      }
+    }
+  }, [localStream]);
 
   // --- Create Peer Connection Function ---
   const createPeerConnection = useCallback((targetUserId: string): RTCPeerConnection | null => {
@@ -503,7 +530,12 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
             autoPlay
             playsInline
             muted // Mute local video playback to avoid echo
+            style={{ visibility: isVideoEnabled ? 'visible' : 'hidden' }} // Hide video element if disabled
           />
+          {/* Show placeholder if video is disabled */}
+          {!isVideoEnabled && (
+            <div className={styles.videoPlaceholder}>Camera Off</div>
+          )}
           <span>You ({username.substring(0,6)})</span>
         </div>
 
@@ -525,7 +557,20 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         ))} 
       </div>
       <div className={styles.controls}>
-        {/* TODO: Add call controls (mute audio, disable video, hang up) */}
+        <button 
+          onClick={toggleAudio} 
+          className={`${styles.controlButton} ${!isAudioEnabled ? styles.inactive : ''}`}
+        >
+          {isAudioEnabled ? 'Mute Mic' : 'Unmute Mic'}
+        </button>
+        <button 
+          onClick={toggleVideo} 
+          className={`${styles.controlButton} ${!isVideoEnabled ? styles.inactive : ''}`}
+        >
+          {isVideoEnabled ? 'Stop Video' : 'Start Video'}
+        </button>
+        {/* Add Hang Up button later */}
+        {/* <button className={`${styles.controlButton} ${styles.hangup}`}>Hang Up</button> */}
         <button onClick={() => console.log("Peer Connections:", peerConnections.current)}>Log Peers</button>
          <button onClick={() => console.log("Signals:", signals)}>Log Signals</button>
       </div>
