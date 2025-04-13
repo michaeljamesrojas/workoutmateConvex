@@ -238,11 +238,18 @@ export function Calendar({}: CalendarProps) {
           minute: "2-digit",
         });
       const event = events.find((e) => e.id === arg.event.id);
+      
+      // Check if the event has ended (end time is in the past)
+      const now = new Date();
+      const eventEnd = event?.end ? new Date(event.end) : null;
+      const isEnded = eventEnd ? eventEnd < now : false;
+      
       const isCurrentUser = event?.creatorId === user?.id || event?.creatorName === currentUsername;
       return (
         <CustomEvent
           event={{ title: arg.event.title, timeText }}
           isCurrentUser={isCurrentUser}
+          isEnded={isEnded}
           onEditClick={() => handleEventEditClick(arg)}
         />
       );

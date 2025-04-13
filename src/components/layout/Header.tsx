@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { SignOutButton } from "@clerk/clerk-react";
+import { Notifications } from "../notifications";
 import styles from "./Header.module.css";
 
 interface HeaderProps {}
@@ -44,6 +45,7 @@ export const Header = ({}: HeaderProps) => {
     <header className={styles.header}>
       <h1>Workoutmate</h1>
       <div className={styles.userProfile}>
+        {isLoaded && isSignedIn && <Notifications />}
         <div className={styles.profileContainer} onClick={toggleDropdown}>
           <div className={styles.profileIcon}>
             {displayUsername ? displayUsername.charAt(0).toUpperCase() : "U"}

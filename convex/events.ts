@@ -228,12 +228,42 @@ export const joinSession = mutation({
       throw new Error("Event not found.");
     }
 
+    // Get joining user details
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", userId))
+      .collect();
+    const joiningUser = users[0] || { username: "Someone" };
+    const username = joiningUser.username;
+
     // Ensure participantIds array exists and add user if not already present
     const currentParticipants = event.participantIds || [];
     if (!currentParticipants.includes(userId)) {
       const updatedParticipants = [...currentParticipants, userId];
       await ctx.db.patch(args.eventId, { participantIds: updatedParticipants });
       console.log(`User ${userId} joined event ${args.eventId}`);
+      
+      // Create a notification for the session creator
+      const creatorId = event.userId;
+      // Only create notification if the joiner is not the creator
+      if (creatorId !== userId) {
+        // Get event title and format the notification content
+        const eventTitle = event.title || "your session";
+        const notificationContent = `${username} has joined ${eventTitle}`;
+        
+        // Create the notification
+        await ctx.db.insert("notifications", {
+          userId: creatorId,
+          type: "session_join",
+          content: notificationContent,
+          eventId: args.eventId,
+          fromUserId: userId,
+          isRead: false,
+          createdAt: Date.now(),
+        });
+        
+        console.log(`Created notification for creator ${creatorId} about user ${userId} joining event ${args.eventId}`);
+      }
     } else {
       console.log(`User ${userId} is already in event ${args.eventId}`);
     }
