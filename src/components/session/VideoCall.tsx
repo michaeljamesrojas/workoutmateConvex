@@ -28,6 +28,9 @@ const stunServers = {
 export const VideoCall = ({ sessionId, userId, username, participantIds }: VideoCallProps) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({}); // State to hold remote streams
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true); // State for local audio
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true); // State for local video
+
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({}); // Refs for remote video elements
   const pendingCandidatesRef = useRef<Record<string, RTCIceCandidateInit[]>>({}); // Ref to store pending candidates
@@ -69,6 +72,30 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
+
+  // --- Toggle Local Audio ---
+  const toggleAudio = useCallback(() => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsAudioEnabled(audioTrack.enabled);
+        console.log(`Local audio ${audioTrack.enabled ? 'enabled' : 'disabled'}`);
+      }
+    }
+  }, [localStream]);
+
+  // --- Toggle Local Video ---
+  const toggleVideo = useCallback(() => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoEnabled(videoTrack.enabled);
+        console.log(`Local video ${videoTrack.enabled ? 'enabled' : 'disabled'}`);
+      }
+    }
+  }, [localStream]);
 
   // --- Create Peer Connection Function ---
   const createPeerConnection = useCallback((targetUserId: string): RTCPeerConnection | null => {
@@ -386,16 +413,18 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
             if (polite) {
                 // Polite peer rollback: Set remote description, create answer.
                 console.log(`[Glare] Polite peer yielding to offer from ${senderId}. Setting remote, then answering.`);
-                await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: parsedData.sdp }));
-                console.log(`Remote description (offer) set for ${senderId}`);
+                try {
+                    await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: parsedData.sdp }));
+                    console.log(`Remote description (offer) set for ${senderId}`);
 
-                console.log(`Creating answer for ${senderId}`);
-                if (pc.signalingState === 'have-remote-offer') { // Check state before creating answer
+                    // State should now be 'have-remote-offer'
+                    console.log(`Creating answer for ${senderId}`);
                     const answer = await pc.createAnswer();
-                    console.log(`Setting local description (answer) for ${senderId}`);
-                    if (pc.signalingState === 'have-remote-offer') { // Final check before setting local answer
+
+                    // @ts-expect-error - TS doesn't correctly track signalingState after setRemoteDescription
+                    if (pc.signalingState === 'have-remote-offer') {
                         await pc.setLocalDescription(answer);
-                        ignoreOffer.current[senderId] = false; // Reset flag
+                        ignoreOffer.current[senderId] = false; // Reset flag only on success
                         console.log(`Sending answer to ${senderId}`);
                         sendSignal({
                             sessionId,
@@ -404,19 +433,20 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
                             signal: JSON.stringify({ type: answer.type, sdp: answer.sdp }),
                         });
                     } else {
-                        console.warn(`[Aborting Answer] State changed to ${pc.signalingState} just before setting local description (answer) for ${senderId}.`);
-                        ignoreOffer.current[senderId] = false; // Reset flag
+                        console.warn(`[Glare] Signaling state changed to ${pc.signalingState} before setting local answer for ${senderId}. Aborting answer.`);
+                        // Potentially rollback or reset state here if necessary
+                        // For now, just log and don't send the answer
                     }
-                } else {
-                     console.warn(`Tried to create answer for ${senderId} but signaling state is ${pc.signalingState} (expected have-remote-offer).`);
-                     ignoreOffer.current[senderId] = false; // Reset flag
+                } catch (error) {
+                    console.error(`Error processing offer from ${senderId}:`, error);
+                    // Consider resetting ignoreOffer or other cleanup
+                    // ignoreOffer.current[senderId] = false; // Example reset
                 }
             } else {
-                // Impolite peer rollback: Ignore the incoming offer for now.
-                console.log(`[Glare] Impolite peer received offer from ${senderId} while in ${pc.signalingState}. Ignoring this offer and setting ignoreOffer flag.`);
-                ignoreOffer.current[senderId] = true; // Set flag to ignore subsequent offers until this negotiation resolves
-                // Do NOT process this incoming offer (no setRemoteDescription, no createAnswer)
-                // Let the negotiation initiated by this impolite peer proceed.
+                // Impolite peer rollback: Ignore the incoming offer since we have one pending.
+                console.log(`[Glare] Impolite peer ignoring offer from ${senderId} due to pending local offer.`);
+                // We might want to signal back an error or simply drop it.
+                // Currently, it's just ignored based on the ignoreOffer flag logic earlier.
             }
             break;
 
@@ -503,7 +533,12 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
             autoPlay
             playsInline
             muted // Mute local video playback to avoid echo
+            style={{ visibility: isVideoEnabled ? 'visible' : 'hidden' }} // Hide video element if disabled
           />
+          {/* Show placeholder if video is disabled */}
+          {!isVideoEnabled && (
+            <div className={styles.videoPlaceholder}>Camera Off</div>
+          )}
           <span>You ({username.substring(0,6)})</span>
         </div>
 
@@ -525,7 +560,20 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
         ))} 
       </div>
       <div className={styles.controls}>
-        {/* TODO: Add call controls (mute audio, disable video, hang up) */}
+        <button 
+          onClick={toggleAudio} 
+          className={`${styles.controlButton} ${!isAudioEnabled ? styles.inactive : ''}`}
+        >
+          {isAudioEnabled ? 'Mute Mic' : 'Unmute Mic'}
+        </button>
+        <button 
+          onClick={toggleVideo} 
+          className={`${styles.controlButton} ${!isVideoEnabled ? styles.inactive : ''}`}
+        >
+          {isVideoEnabled ? 'Stop Video' : 'Start Video'}
+        </button>
+        {/* Add Hang Up button later */}
+        {/* <button className={`${styles.controlButton} ${styles.hangup}`}>Hang Up</button> */}
         <button onClick={() => console.log("Peer Connections:", peerConnections.current)}>Log Peers</button>
          <button onClick={() => console.log("Signals:", signals)}>Log Signals</button>
       </div>
