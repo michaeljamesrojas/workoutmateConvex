@@ -45,10 +45,27 @@ export const Header = ({}: HeaderProps) => {
     <header className={styles.header}>
       <h1>Workoutmate</h1>
       <div className={styles.userProfile}>
-        {isLoaded && isSignedIn && <Notifications />}
-        <div className={styles.profileContainer} onClick={toggleDropdown}>
-          <div className={styles.profileIcon}>
-            {displayUsername ? displayUsername.charAt(0).toUpperCase() : "U"}
+        <div className={styles.userControls} style={{ gap: '0' }}>
+          {/* Bell icon with adjusted margin to move it back a bit */}
+          <span style={{
+            fontSize: '24px',
+            marginRight: '5px', /* Changed from -10px to 5px to move it back */
+            zIndex: 5,
+            display: 'inline-block',
+            position: 'relative',
+            top: '1px'
+          }}>
+            🔔
+          </span>
+          
+          {/* Original notifications component - temporarily hidden
+          {isLoaded && isSignedIn && <Notifications />}
+          */}
+          
+          <div className={styles.profileContainer} onClick={toggleDropdown} style={{ zIndex: 10 }}>
+            <div className={styles.profileIcon}>
+              {displayUsername ? displayUsername.charAt(0).toUpperCase() : "U"}
+            </div>
           </div>
         </div>
         {isDropdownOpen && (
