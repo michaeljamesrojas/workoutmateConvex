@@ -597,8 +597,7 @@ export const VideoCall = forwardRef(({ sessionId, userId, username, participantI
         </button>
         {/* Add Hang Up button later */}
         {/* <button className={`${styles.controlButton} ${styles.hangup}`}>Hang Up</button> */}
-        <button onClick={() => console.log("Peer Connections:", peerConnections.current)}>Log Peers</button>
-         <button onClick={() => console.log("Signals:", signals)}>Log Signals</button>
+
       </div>
     </div>
   );
