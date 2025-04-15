@@ -114,6 +114,7 @@ export const getAllEvents = query({
       return {
         ...event,
         creatorName: userMap.get(event.userId) || "Unknown User",
+        creatorId: event.userId, // Add the userId as creatorId for direct comparison
       };
     });
 
@@ -130,10 +131,22 @@ export const update = mutation({
     end: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Get the identity of the user calling the mutation
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Update Session - Failed: User is not authenticated");
+    }
+
     const event = await ctx.db.get(args.id);
     if (!event) {
       console.log("Update Session - Failed: Event not found", args.id);
       throw new Error("Event not found");
+    }
+
+    // Check if the authenticated user is the creator of the event
+    if (event.userId !== identity.subject) { // Use identity.subject for Clerk user ID
+      console.log("Update Session - Failed: Permission denied", { eventId: args.id, requestor: identity.subject, owner: event.userId });
+      throw new Error("Permission denied: Only the event creator can update this session.");
     }
 
     // Validate that the start date is not in the past
@@ -215,12 +228,42 @@ export const joinSession = mutation({
       throw new Error("Event not found.");
     }
 
+    // Get joining user details
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", userId))
+      .collect();
+    const joiningUser = users[0] || { username: "Someone" };
+    const username = joiningUser.username;
+
     // Ensure participantIds array exists and add user if not already present
     const currentParticipants = event.participantIds || [];
     if (!currentParticipants.includes(userId)) {
       const updatedParticipants = [...currentParticipants, userId];
       await ctx.db.patch(args.eventId, { participantIds: updatedParticipants });
       console.log(`User ${userId} joined event ${args.eventId}`);
+      
+      // Create a notification for the session creator
+      const creatorId = event.userId;
+      // Only create notification if the joiner is not the creator
+      if (creatorId !== userId) {
+        // Get event title and format the notification content
+        const eventTitle = event.title || "your session";
+        const notificationContent = `${username} has joined ${eventTitle}`;
+        
+        // Create the notification
+        await ctx.db.insert("notifications", {
+          userId: creatorId,
+          type: "session_join",
+          content: notificationContent,
+          eventId: args.eventId,
+          fromUserId: userId,
+          isRead: false,
+          createdAt: Date.now(),
+        });
+        
+        console.log(`Created notification for creator ${creatorId} about user ${userId} joining event ${args.eventId}`);
+      }
     } else {
       console.log(`User ${userId} is already in event ${args.eventId}`);
     }

@@ -23,6 +23,7 @@ interface CalendarEvent {
   start: string;
   end: string;
   creatorName: string;
+  creatorId?: string;
 }
 
 export function Calendar({}: CalendarProps) {
@@ -49,6 +50,7 @@ export function Calendar({}: CalendarProps) {
   const events = allEvents.map((event: any) => ({
     id: event._id,
     creatorName: event.creatorName, // Keep the original creator name
+    creatorId: event.creatorId, // Include the creator ID for ownership checks
     // Include creator name with the title, show "You" for current user's events
     title:
       event.creatorName === currentUsername
@@ -92,6 +94,7 @@ export function Calendar({}: CalendarProps) {
       start: event.start,
       end: event.end,
       creatorName: event.creatorName,
+      creatorId: event.creatorId,
     };
 
     setViewingEvent(eventData);
@@ -112,6 +115,7 @@ export function Calendar({}: CalendarProps) {
       start: event.start,
       end: event.end,
       creatorName: event.creatorName,
+      creatorId: event.creatorId,
     };
 
     setSelectedEvent(eventData);
@@ -234,11 +238,18 @@ export function Calendar({}: CalendarProps) {
           minute: "2-digit",
         });
       const event = events.find((e) => e.id === arg.event.id);
-      const isCurrentUser = event?.creatorName === currentUsername;
+      
+      // Check if the event has ended (end time is in the past)
+      const now = new Date();
+      const eventEnd = event?.end ? new Date(event.end) : null;
+      const isEnded = eventEnd ? eventEnd < now : false;
+      
+      const isCurrentUser = event?.creatorId === user?.id || event?.creatorName === currentUsername;
       return (
         <CustomEvent
           event={{ title: arg.event.title, timeText }}
           isCurrentUser={isCurrentUser}
+          isEnded={isEnded}
           onEditClick={() => handleEventEditClick(arg)}
         />
       );
@@ -278,7 +289,7 @@ export function Calendar({}: CalendarProps) {
           setSelectedEvent(null);
         }}
         onSubmit={handleEventSubmit}
-        onDelete={selectedEvent?.creatorName === currentUsername ? handleEventDelete : undefined}
+        onDelete={selectedEvent?.creatorId === user?.id || selectedEvent?.creatorName === currentUsername ? handleEventDelete : undefined}
         dateStr={selectedDate}
         event={selectedEvent}
         userId={user?.id ?? ''}
@@ -290,7 +301,7 @@ export function Calendar({}: CalendarProps) {
           setViewingEvent(null);
         }}
         event={viewingEvent}
-        isOwnEvent={viewingEvent?.creatorName === currentUsername}
+        isOwnEvent={viewingEvent?.creatorId === user?.id || viewingEvent?.creatorName === currentUsername}
         onEdit={handleEditEvent}
       />
     </div>

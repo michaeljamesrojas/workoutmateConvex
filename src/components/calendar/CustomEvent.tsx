@@ -7,12 +7,14 @@ interface CustomEventProps {
     timeText: string;
   };
   isCurrentUser: boolean;
+  isEnded?: boolean;
   onEditClick?: (e: React.MouseEvent) => void;
 }
 
 export const CustomEvent: React.FC<CustomEventProps> = ({
   event,
   isCurrentUser,
+  isEnded = false,
   onEditClick,
 }) => {
   // Split the title to separate creator name and event title if present
@@ -27,7 +29,7 @@ export const CustomEvent: React.FC<CustomEventProps> = ({
 
   return (
     <div
-      className={`${styles.customEvent} ${isCurrentUser ? styles.currentUserEvent : ""}`}
+      className={`${styles.customEvent} ${isCurrentUser ? styles.currentUserEvent : ""} ${isEnded ? styles.endedEvent : ""}`}
     >
       <div className={styles.eventTime}>{event.timeText}</div>
       {titleParts.length > 0 && (

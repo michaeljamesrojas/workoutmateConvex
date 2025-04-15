@@ -42,4 +42,22 @@ export default defineSchema({
   })
     .index("by_session_and_targetUser", ["sessionId", "targetUserId"])
     .index("by_session_and_user", ["sessionId", "userId"]),
+
+  // Notifications table for user alerts and updates
+  notifications: defineTable({
+    userId: v.string(),         // ID of the user to notify
+    type: v.union(             // Type of notification
+      v.literal("session_join"),
+      v.literal("session_start"),
+      v.literal("session_reminder")
+    ),
+    content: v.string(),        // Notification content/message
+    eventId: v.optional(v.id("events")),  // Related event ID if applicable
+    fromUserId: v.optional(v.string()),   // ID of the user who triggered the notification
+    isRead: v.boolean(),        // Whether the notification has been read
+    createdAt: v.number(),      // When the notification was created
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_read", ["userId", "isRead"])
+    .index("by_eventId", ["eventId"]),
 });
