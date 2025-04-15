@@ -1,7 +1,7 @@
 export default {
   providers: [
     {
-      domain: "https://smart-griffon-59.clerk.accounts.dev/",
+      domain: "https://gorgeous-kit-31.clerk.accounts.dev",
       applicationID: "convex",
     },
   ],
