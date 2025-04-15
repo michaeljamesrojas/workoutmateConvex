@@ -11,7 +11,7 @@ interface PeerConnection {
 }
 
 interface VideoCallProps {
-  sessionId: string;
+  sessionId: Id<"events">;
   userId: string; // Current user's ID
   username: string;
   participantIds: string[]; // IDs of ALL participants including self
@@ -46,6 +46,7 @@ export const VideoCall = forwardRef(({ sessionId, userId, username, participantI
   const sendSignal = useMutation(api.video.sendSignal);
   const deleteSignal = useMutation(api.video.deleteSignal);
   const signals = useQuery(api.video.getSignals, isAuthenticated ? { sessionId } : "skip");
+  const leaveSession = useMutation(api.video.leaveSession);
 
   const otherParticipantIds = participantIds.filter(id => id !== userId);
 
@@ -292,14 +293,14 @@ export const VideoCall = forwardRef(({ sessionId, userId, username, participantI
                 })
                 .then(() => {
                 console.log(`Initial local description (offer) set for ${peerId}`);
-                if (pc.localDescription) {
-                    sendSignal({
+
+                console.log(`Sending offer to ${peerId} via negotiationneeded`);
+                sendSignal({
                     sessionId,
                     targetUserId: peerId,
                     type: "offer",
-                    signal: JSON.stringify({ type: pc.localDescription.type, sdp: pc.localDescription.sdp }),
-                    });
-                }
+                    signal: JSON.stringify({ type: pc.localDescription?.type, sdp: pc.localDescription?.sdp }),
+                });
                 })
                 .catch(error => {
                     console.error(`Error creating/sending initial offer to ${peerId}:`, error);
@@ -521,7 +522,14 @@ export const VideoCall = forwardRef(({ sessionId, userId, username, participantI
 
 
   // --- Leave Call Handler ---
-  const leaveCall = useCallback(() => {
+  const leaveCall = useCallback(async () => {
+    // Call backend to remove user from session and clean up signals
+    try {
+      await leaveSession({ sessionId: sessionId as Id<"events">, userId });
+      console.log("Successfully notified backend of leave.");
+    } catch (err) {
+      console.error("Failed to notify backend of leave:", err);
+    }
     // Stop local media tracks
     localStream?.getTracks().forEach((track) => track.stop());
     // Close all peer connections
@@ -531,7 +539,7 @@ export const VideoCall = forwardRef(({ sessionId, userId, username, participantI
     remoteVideoRefs.current = {};
     // Optionally, notify backend/peers here
     console.log("[VideoCall] leaveCall triggered: cleaned up media and peers.");
-  }, [localStream]);
+  }, [localStream, leaveSession, sessionId, userId]);
 
   useImperativeHandle(ref, () => ({ leaveCall }), [leaveCall]);
 

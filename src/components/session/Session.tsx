@@ -8,6 +8,7 @@ import { VideoCall } from "./VideoCall";
 import styles from "./Session.module.css";
 import { useEffect, useState, useRef } from "react";
 import { showToast } from "../../utils/toast";
+import { Id } from "../../../convex/_generated/dataModel";
 
 interface SessionProps {}
 
@@ -213,6 +214,9 @@ export function Session({}: SessionProps) {
   // Log the participantIds being passed down on each render
   console.log(`[Session.tsx] Rendering. Passing participantIds to VideoCall:`, participantIds);
 
+  // Pass the Convex event ID as sessionId prop
+  const eventId = session && "_id" in session ? session._id as Id<"events"> : undefined;
+
   return (
     <div className={styles.sessionContainer}>
       <Header />
@@ -227,7 +231,6 @@ export function Session({}: SessionProps) {
         </button>
         <h1>{session && 'title' in session ? session.title : 'Loading...'}</h1>
       </div>
-      
       {isEarlyJoin && (
         <div className={styles.earlyJoinBanner}>
           <div className={styles.earlyJoinMessage}>
@@ -235,14 +238,13 @@ export function Session({}: SessionProps) {
           </div>
         </div>
       )}
-
       <div className={styles.sessionContent}>
         <div className={styles.mainArea}>
           {/* Use clerkLoaded and isSignedIn for the render condition */}
-          {clerkLoaded && isSignedIn ? (
+          {clerkLoaded && isSignedIn && eventId ? (
             <VideoCall
               ref={videoCallRef}
-              sessionId={sessionId || ""}
+              sessionId={eventId}
               userId={currentUserId}      // Pass derived userId
               username={currentUsername}  // Pass derived username
               participantIds={participantIds} 

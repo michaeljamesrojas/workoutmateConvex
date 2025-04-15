@@ -104,3 +104,36 @@ export const deleteSignal = mutation({
         }
     }
 });
+
+/**
+ * Remove a user from a session (video call) and clean up their signals.
+ */
+export const leaveSession = mutation({
+  args: {
+    sessionId: v.id("events"), // Use Convex ID type for session/event
+    userId: v.string(),
+  },
+  handler: async (ctx, { sessionId, userId }) => {
+    // Remove user from participantIds in the session/event document
+    const session = await ctx.db.get(sessionId);
+    if (session && Array.isArray(session.participantIds)) {
+      const newList = session.participantIds.filter((id) => id !== userId);
+      await ctx.db.patch(sessionId, { participantIds: newList });
+    }
+
+    // Delete all signals sent by this user in this session
+    const sentSignals = await ctx.db
+      .query("videoSignals")
+      .withIndex("by_session_and_user", q => q.eq("sessionId", sessionId).eq("userId", userId))
+      .collect();
+    // Delete all signals targeted to this user in this session
+    const receivedSignals = await ctx.db
+      .query("videoSignals")
+      .withIndex("by_session_and_targetUser", q => q.eq("sessionId", sessionId).eq("targetUserId", userId))
+      .collect();
+    for (const signal of [...sentSignals, ...receivedSignals]) {
+      await ctx.db.delete(signal._id);
+    }
+    console.log(`[leaveSession] User ${userId} removed from session ${sessionId} and signals cleaned up.`);
+  },
+});
