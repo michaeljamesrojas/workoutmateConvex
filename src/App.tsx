@@ -4,14 +4,15 @@ import { Login, ProtectedRoute, OAuthCallback, ConvexLogin, ConvexSignup } from 
 import { Calendar } from "./components/calendar";
 import { Session } from "./components/session";
 import { useUser } from "@clerk/clerk-react";
-import { useMutation } from "convex/react";
-import { api } from "./convex";
+import { useNotificationPolling } from './hooks/useNotificationPolling';
 
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoaded: clerkLoaded, isSignedIn, user } = useUser();
-  const pollSessionNotifications = useMutation(api.sessionNotifications.pollSessionNotifications);
+
+  // Add notification polling
+  useNotificationPolling();
 
   // When auth state changes, redirect appropriately
   useEffect(() => {
@@ -43,23 +44,6 @@ export default function App() {
       navigate("/");
     }
   }, [isSignedIn, navigate, location.pathname, clerkLoaded]);
-
-  // Poll for session notifications every minute when the user is signed in
-  useEffect(() => {
-    // Only set up polling if the user is signed in
-    if (!clerkLoaded || !isSignedIn) return;
-
-    // Check immediately on login
-    pollSessionNotifications({});
-    
-    // Set up interval to check every minute
-    const interval = setInterval(() => {
-      pollSessionNotifications({});
-    }, 60000); // Check every minute
-    
-    // Clean up interval on unmount
-    return () => clearInterval(interval);
-  }, [clerkLoaded, isSignedIn, pollSessionNotifications]);
 
   // Main route structure
   return (

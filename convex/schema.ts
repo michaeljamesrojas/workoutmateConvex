@@ -13,9 +13,14 @@ export default defineSchema({
     password: v.optional(v.string()),
     createdAt: v.number(),
     clerkId: v.optional(v.string()),
+    userId: v.optional(v.string()), // Clerk user ID
+    avatarId: v.optional(v.string()), // ID of the selected avatar
+    avatarColor: v.optional(v.string()), // Color for letter avatars
+    storageId: v.optional(v.union(v.string(), v.null())), // ID for uploaded profile image, can be null
   })
     .index("by_username", ["username"])
-    .index("by_clerkId", ["clerkId"]),
+    .index("by_clerkId", ["clerkId"])
+    .index("by_userId", ["userId"]),
 
   events: defineTable({
     userId: v.string(),

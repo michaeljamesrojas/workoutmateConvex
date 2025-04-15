@@ -23,6 +23,12 @@
   position: relative;
 }
 
+.userControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* Space between notification bell and user icon */
+}
+
 .profileContainer {
   cursor: pointer;
 }
@@ -75,4 +81,4 @@
 
 .dropdownItem:hover {
   background-color: rgba(0, 0, 0, 0.05);
-} 
+}
