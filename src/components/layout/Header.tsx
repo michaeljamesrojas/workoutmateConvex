@@ -152,21 +152,8 @@ export const Header = ({}: HeaderProps) => {
       <h1>Workoutmate</h1>
       <div className={styles.userProfile}>
         <div className={styles.userControls} style={{ gap: '0' }}>
-          {/* Bell icon with adjusted margin to move it back a bit */}
-          <span style={{
-            fontSize: '24px',
-            marginRight: '5px',
-            zIndex: 5,
-            display: 'inline-block',
-            position: 'relative',
-            top: '1px'
-          }}>
-            🔔
-          </span>
-          
-          {/* Original notifications component - temporarily hidden
+          {/* Notifications component */}
           {isLoaded && isSignedIn && <Notifications />}
-          */}
           
           <div 
             className={styles.profileContainer} 
