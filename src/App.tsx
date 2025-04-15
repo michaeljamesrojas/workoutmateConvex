@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
-import { Login, ProtectedRoute, OAuthCallback } from "./components/auth";
+import { Login, ProtectedRoute, OAuthCallback, ConvexLogin, ConvexSignup } from "./components/auth";
 import { Calendar } from "./components/calendar";
 import { Session } from "./components/session";
 import { useUser } from "@clerk/clerk-react";
@@ -22,14 +22,18 @@ export default function App() {
       if (
         location.pathname !== "/login" &&
         location.pathname !== "/register" &&
-        location.pathname !== "/oauth-callback"
+        location.pathname !== "/oauth-callback" &&
+        location.pathname !== "/login2" &&
+        location.pathname !== "/signup2"
       ) {
         console.log("Not authenticated, redirecting to login");
         navigate("/login");
       }
     } else if (
       location.pathname === "/login" ||
-      location.pathname === "/register"
+      location.pathname === "/register" ||
+      location.pathname === "/login2" ||
+      location.pathname === "/signup2"
     ) {
       // If logged in but on auth page, redirect to home
       console.log("Already authenticated, redirecting to home");
@@ -43,6 +47,8 @@ export default function App() {
       <Route path="/login" element={<Login isRegistering={false} />} />
       <Route path="/register" element={<Login isRegistering={true} />} />
       <Route path="/oauth-callback" element={<OAuthCallback />} />
+      <Route path="/login2" element={<ConvexLogin />} />
+      <Route path="/signup2" element={<ConvexSignup />} />
       <Route
         path="/"
         element={
