@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id, Doc } from "../../../convex/_generated/dataModel";
@@ -25,7 +25,7 @@ const stunServers = {
   ],
 };
 
-export const VideoCall = ({ sessionId, userId, username, participantIds }: VideoCallProps) => {
+export const VideoCall = forwardRef(({ sessionId, userId, username, participantIds }: VideoCallProps, ref) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({}); // State to hold remote streams
   const [isAudioEnabled, setIsAudioEnabled] = useState(true); // State for local audio
@@ -520,6 +520,21 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
   }, [remoteStreams]); // Re-run when remoteStreams changes
 
 
+  // --- Leave Call Handler ---
+  const leaveCall = useCallback(() => {
+    // Stop local media tracks
+    localStream?.getTracks().forEach((track) => track.stop());
+    // Close all peer connections
+    Object.values(peerConnections.current).forEach(pc => pc.close());
+    // Optionally, clear remote streams and refs
+    setRemoteStreams({});
+    remoteVideoRefs.current = {};
+    // Optionally, notify backend/peers here
+    console.log("[VideoCall] leaveCall triggered: cleaned up media and peers.");
+  }, [localStream]);
+
+  useImperativeHandle(ref, () => ({ leaveCall }), [leaveCall]);
+
   // --- Render Component ---
   return (
     <div className={styles.videoCallContainer}>
@@ -579,4 +594,4 @@ export const VideoCall = ({ sessionId, userId, username, participantIds }: Video
       </div>
     </div>
   );
-};
+});

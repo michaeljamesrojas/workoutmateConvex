@@ -6,7 +6,7 @@ import { Header } from "../layout";
 import { SessionChat } from "../messaging";
 import { VideoCall } from "./VideoCall";
 import styles from "./Session.module.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { showToast } from "../../utils/toast";
 
 interface SessionProps {}
@@ -17,6 +17,11 @@ interface SessionStatus {
   status: 'upcoming' | 'active' | 'ended' | 'loading' | 'early';
   timeRemaining?: string;
 }
+
+// Add a type for the VideoCall ref handle
+type VideoCallHandle = {
+  leaveCall: () => void;
+};
 
 export function Session({}: SessionProps) {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -146,6 +151,8 @@ export function Session({}: SessionProps) {
                             user.emailAddresses?.[0]?.emailAddress || 'user') 
                           : "";
 
+  const videoCallRef = useRef<VideoCallHandle>(null);
+
   // If session data is still loading
   if (!session) {
     return (
@@ -166,7 +173,12 @@ export function Session({}: SessionProps) {
       <div className={styles.sessionContainer}>
         <Header />
         <div className={styles.sessionHeader}>
-          <button className={styles.backButton} onClick={() => navigate(-1)}>
+          <button className={styles.backButton} onClick={() => {
+            if (videoCallRef.current && videoCallRef.current.leaveCall) {
+              videoCallRef.current.leaveCall();
+            }
+            navigate(-1);
+          }}>
             ← Back
           </button>
           <h1>{session && 'title' in session ? session.title : 'Session'}</h1>
@@ -205,7 +217,12 @@ export function Session({}: SessionProps) {
     <div className={styles.sessionContainer}>
       <Header />
       <div className={styles.sessionHeader}>
-        <button className={styles.backButton} onClick={() => navigate(-1)}>
+        <button className={styles.backButton} onClick={() => {
+          if (videoCallRef.current && videoCallRef.current.leaveCall) {
+            videoCallRef.current.leaveCall();
+          }
+          navigate(-1);
+        }}>
           ← Back
         </button>
         <h1>{session && 'title' in session ? session.title : 'Loading...'}</h1>
@@ -224,6 +241,7 @@ export function Session({}: SessionProps) {
           {/* Use clerkLoaded and isSignedIn for the render condition */}
           {clerkLoaded && isSignedIn ? (
             <VideoCall
+              ref={videoCallRef}
               sessionId={sessionId || ""}
               userId={currentUserId}      // Pass derived userId
               username={currentUsername}  // Pass derived username
